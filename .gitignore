@@ -1,0 +1,24 @@
+.DS_Store
+work/
+
+# 每个应用的本地私密配置
+**/.env
+**/.env.*
+!**/.env.example
+**/manifest.json
+
+# HBuilderX 本地状态与编译产物
+**/.hbuilderx/
+**/unpackage/
+
+# Android / iOS 签名材料
+**/*.keystore
+**/*.jks
+**/*.p12
+**/*.mobileprovision
+**/*.cer
+**/*.key
+
+# 常用编辑器临时目录
+**/.idea/
+**/.vscode/

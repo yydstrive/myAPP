@@ -1,0 +1,11 @@
+{
+  "name": "task-service",
+  "version": "1.0.0",
+  "description": "日程清单任务云对象",
+  "main": "index.obj.js",
+  "cloudfunction-config": {
+    "memorySize": 256,
+    "timeout": 10,
+    "triggers": []
+  }
+}

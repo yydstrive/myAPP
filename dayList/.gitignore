@@ -1,0 +1,11 @@
+unpackage/
+.DS_Store
+.hbuilderx/
+.env
+.env.*
+!.env.example
+manifest.json
+*.keystore
+*.jks
+*.p12
+*.mobileprovision

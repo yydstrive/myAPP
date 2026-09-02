@@ -1,0 +1,40 @@
+{
+  "bsonType": "object",
+  "required": ["salt", "secret_hash", "created_at", "updated_at"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false,
+    "count": false
+  },
+  "properties": {
+    "_id": {
+      "description": "固定为 sync-security"
+    },
+    "salt": {
+      "bsonType": "string",
+      "title": "口令盐值"
+    },
+    "secret_hash": {
+      "bsonType": "string",
+      "title": "口令摘要"
+    },
+    "failed_attempts": {
+      "bsonType": "int",
+      "title": "连续输错次数"
+    },
+    "locked_until": {
+      "bsonType": "long",
+      "title": "锁定截止时间戳"
+    },
+    "created_at": {
+      "bsonType": "long",
+      "title": "创建时间戳"
+    },
+    "updated_at": {
+      "bsonType": "long",
+      "title": "更新时间戳"
+    }
+  }
+}
