@@ -3,13 +3,21 @@
 		<view class="card-heading">
 			<view class="card-icon" :class="`icon-${icon}`">
 				<text v-if="icon === 'hourglass'">⌛</text>
-				<text v-else-if="icon === 'sun'">☀</text>
+				<view v-else-if="icon === 'sun'" class="today-sun-glyph">
+					<view v-for="ray in 8" :key="ray" class="today-sun-ray" :class="`ray-${ray}`"><view></view></view>
+					<view class="today-sun-core"></view>
+				</view>
 				<text v-else-if="icon === 'check'">✓</text>
-				<text v-else>▤</text>
+				<view v-else class="future-calendar-glyph">
+					<view class="future-calendar-ring ring-left"></view>
+					<view class="future-calendar-ring ring-right"></view>
+					<view class="future-calendar-bar"></view>
+					<view class="future-calendar-dots"><view></view><view></view><view></view><view></view></view>
+				</view>
 			</view>
 			<text class="card-title">{{ title }}</text>
 			<text class="card-count">{{ tasks.length }}</text>
-			<text class="card-chevron">›</text>
+			<button class="card-open-button" :aria-label="`查看全部${title}任务`" @tap="$emit('open')">›</button>
 		</view>
 		<view v-if="tasks.length" class="card-tasks">
 			<view v-for="task in tasks" :key="task._id" class="task-swipe">
@@ -21,9 +29,13 @@
 						</button>
 					</view>
 					<view class="task-copy">
-						<text class="task-title" :class="{ completed: task.completed }">{{ task.title }}</text>
-						<text v-if="tone === 'red'" class="task-meta overdue-meta">逾期 {{ overdueDays(task) }} 天</text>
-						<text v-else-if="tone === 'purple' || tone === 'green'" class="task-meta">{{ formatShortDate(task.task_date) }}</text>
+						<view class="task-title-wrap">
+							<text class="task-title" :class="{ completed: task.completed }">{{ task.title }}</text>
+						</view>
+						<view class="task-meta-row">
+							<text class="task-meta">{{ formatTaskDate(task.task_date, today) }}</text>
+							<text v-if="tone === 'red'" class="overdue-badge">逾期 {{ overdueDays(task) }} 天</text>
+						</view>
 					</view>
 				</view>
 			</view>
@@ -33,10 +45,7 @@
 </template>
 
 <script>
-	const parseDate = (value) => {
-		const [year, month, day] = String(value).split('-').map(Number)
-		return new Date(year, month - 1, day, 12, 0, 0)
-	}
+	import { formatTaskDate } from '../utils/task-date.js'
 
 	export default {
 		name: 'TaskCard',
@@ -47,11 +56,17 @@
 			tasks: { type: Array, default: () => [] },
 			today: { type: String, required: true }
 		},
-		emits: ['toggle', 'remove'],
+		emits: ['toggle', 'remove', 'open'],
 		data() {
 			return { openTaskId: '', touchStartX: 0, touchStartY: 0 }
 		},
 		methods: {
+			formatTaskDate,
+			overdueDays(task) {
+				const due = new Date(`${task.task_date}T12:00:00`)
+				const today = new Date(`${this.today}T12:00:00`)
+				return Math.max(1, Math.round((today - due) / 86400000))
+			},
 			onTouchStart(task, event) {
 				const touch = event.touches && event.touches[0]
 				if (!touch) return
@@ -71,21 +86,13 @@
 			removeTask(task) {
 				this.openTaskId = ''
 				this.$emit('remove', task)
-			},
-			formatShortDate(value) {
-				const date = parseDate(value)
-				const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()]
-				return `${weekday} ${date.getMonth() + 1}/${date.getDate()}`
-			},
-			overdueDays(task) {
-				return Math.max(0, Math.round((parseDate(this.today) - parseDate(task.task_date)) / 86400000))
 			}
 		}
 	}
 </script>
 
 <style>
-	.task-card { position:relative; min-height:340rpx; padding:23rpx 20rpx 20rpx; overflow:hidden; border:1rpx solid; border-radius:27rpx; box-shadow:0 12rpx 30rpx rgba(58,51,93,.065); }
+	.task-card { position:relative; min-height:420rpx; padding:23rpx 20rpx 20rpx; overflow:hidden; border:1rpx solid; border-radius:27rpx; box-shadow:0 12rpx 30rpx rgba(58,51,93,.065); }
 	.task-card::after { content:''; position:absolute; right:-35rpx; bottom:-42rpx; width:135rpx; height:135rpx; border-radius:50%; opacity:.25; pointer-events:none; }
 	.tone-red { border-color:rgba(255,87,96,.26); background:linear-gradient(145deg,rgba(255,253,253,.98),rgba(255,246,246,.94)); }
 	.tone-blue { border-color:rgba(68,126,247,.23); background:linear-gradient(145deg,rgba(253,254,255,.98),rgba(244,248,255,.94)); }
@@ -97,9 +104,22 @@
 	.tone-red .card-icon { background:rgba(239,75,84,.12); color:#ef4b54; } .tone-blue .card-icon { background:rgba(61,112,242,.1); color:#3d70f2; }
 	.tone-green .card-icon { background:rgba(57,173,84,.11); color:#39ad54; } .tone-purple .card-icon { background:rgba(111,70,232,.11); color:#6f46e8; }
 	.card-icon.icon-sun { background:rgba(255,184,43,.17); color:#f2ab16; }
+	.today-sun-glyph { position:relative; width:37rpx; height:37rpx; }
+	.today-sun-core { position:absolute; z-index:2; left:11rpx; top:11rpx; width:15rpx; height:15rpx; border-radius:50%; background:#f5b51b; box-shadow:0 0 6rpx rgba(245,181,27,.3); }
+	.today-sun-ray { position:absolute; z-index:1; inset:0; transform-origin:center; }
+	.today-sun-ray view { position:absolute; right:0; top:17rpx; width:6rpx; height:3rpx; border-radius:3rpx; background:#f5b51b; }
+	.today-sun-ray.ray-1 { transform:rotate(0deg); } .today-sun-ray.ray-2 { transform:rotate(45deg); } .today-sun-ray.ray-3 { transform:rotate(90deg); } .today-sun-ray.ray-4 { transform:rotate(135deg); }
+	.today-sun-ray.ray-5 { transform:rotate(180deg); } .today-sun-ray.ray-6 { transform:rotate(225deg); } .today-sun-ray.ray-7 { transform:rotate(270deg); } .today-sun-ray.ray-8 { transform:rotate(315deg); }
+	.future-calendar-glyph { position:relative; width:30rpx; height:29rpx; overflow:visible; border:3rpx solid #7044dc; border-radius:5rpx; background:rgba(255,255,255,.58); }
+	.future-calendar-ring { position:absolute; z-index:3; top:-7rpx; width:3rpx; height:10rpx; border-radius:3rpx; background:#7044dc; }
+	.future-calendar-ring.ring-left { left:6rpx; } .future-calendar-ring.ring-right { right:6rpx; }
+	.future-calendar-bar { position:absolute; left:0; right:0; top:6rpx; height:3rpx; background:#7044dc; }
+	.future-calendar-dots { display:grid; position:absolute; left:5rpx; right:5rpx; bottom:4rpx; grid-template-columns:repeat(2,4rpx); justify-content:space-between; row-gap:3rpx; }
+	.future-calendar-dots view { width:4rpx; height:4rpx; border-radius:1rpx; background:#7044dc; }
 	.card-title { min-width:0; flex:1; font-size:31rpx; font-weight:720; } .tone-red .card-title { color:#f0353f; } .tone-blue .card-title { color:#3473f2; } .tone-green .card-title { color:#31ae4d; } .tone-purple .card-title { color:#7044dc; }
 	.card-count { min-width:43rpx; height:43rpx; padding:0 8rpx; border-radius:14rpx; background:rgba(255,255,255,.78); color:inherit; font-size:23rpx; line-height:43rpx; text-align:center; }
-	.card-chevron { width:24rpx; margin-left:5rpx; color:currentColor; font-size:42rpx; font-weight:300; line-height:43rpx; text-align:right; }
+	.card-open-button { display:flex; flex:0 0 29rpx; align-items:center; justify-content:flex-end; width:29rpx; height:48rpx; margin:0 0 0 3rpx; padding:0; border:0 !important; background:transparent !important; box-shadow:none !important; color:currentColor; font-size:42rpx; font-weight:300; line-height:43rpx; }
+	.card-open-button::after { border:0 !important; }
 	.card-tasks { position:relative; z-index:1; }
 	.task-swipe { position:relative; min-width:0; overflow:hidden; border-bottom:1rpx solid rgba(78,72,105,.075); } .task-swipe:last-child { border-bottom:none; }
 	.task-row { display:flex; position:relative; z-index:2; align-items:flex-start; min-width:0; padding:16rpx 0; transition:transform .22s ease; }
@@ -113,8 +133,12 @@
 	.tone-red .task-checkbox { color:#ef4b54; } .tone-blue .task-checkbox { color:#3d70f2; } .tone-green .task-checkbox { color:#39ad54; } .tone-purple .task-checkbox { color:#6f46e8; }
 	.task-checkbox.checked { background:currentColor !important; } .task-checkbox.checked text { color:#fff; }
 	.task-copy { display:flex; min-width:0; flex:1; flex-direction:column; }
-	.task-title { display:block; width:100%; color:#292a38; font-size:24rpx; line-height:35rpx; overflow-wrap:anywhere; word-break:break-word; }
+	.task-title-wrap { position:relative; min-width:0; }
+	.task-title { display:-webkit-box; width:100%; overflow:hidden; color:#292a38; font-size:24rpx; line-height:35rpx; overflow-wrap:anywhere; word-break:break-word; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
 	.task-title.completed { color:#9293a2; text-decoration:line-through; }
-	.task-meta { margin-top:5rpx; color:#8b8c9d; font-size:18rpx; } .overdue-meta { color:#ef4b54; }
+	.task-meta-row { display:flex; min-width:0; align-items:center; justify-content:space-between; gap:8rpx; margin-top:5rpx; }
+	.task-meta { min-width:0; color:#8b8c9d; font-size:18rpx; line-height:27rpx; }
+	.overdue-badge { flex:0 0 auto; padding:2rpx 7rpx; border:2rpx solid #f2a1a7; border-radius:10rpx; background:#ffe7e9; box-shadow:0 3rpx 0 rgba(207,53,65,.12); color:#df3541; font-size:16rpx; font-weight:650; line-height:23rpx; white-space:nowrap; }
+	.tone-red .task-meta { color:#e95a62; } .tone-blue .task-meta { color:#557bd7; } .tone-green .task-meta { color:#54a867; } .tone-purple .task-meta { color:#8065c7; }
 	.card-empty { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; min-height:205rpx; color:#aaaaba; font-size:22rpx; text-align:center; }
 </style>

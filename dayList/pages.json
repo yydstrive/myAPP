@@ -8,6 +8,15 @@
 				"backgroundColor": "#f8f7fc",
 				"enablePullDownRefresh": true
 			}
+		},
+		{
+			"path": "pages/task-list/task-list",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "任务列表",
+				"backgroundColor": "#f8f7fc",
+				"enablePullDownRefresh": true
+			}
 		}
 	],
 	"globalStyle": {

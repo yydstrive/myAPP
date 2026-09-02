@@ -46,7 +46,6 @@
 						<button class="icon-button" aria-label="搜索" @tap="openSearch"><view class="search-glyph"></view></button>
 						<button class="icon-button" aria-label="回收站" @tap="openTrash">
 							<view class="trash-glyph"><view></view></view>
-							<text v-if="trashTasks.length" class="action-badge">{{ compactCount(trashTasks.length) }}</text>
 						</button>
 					</view>
 				</view>
@@ -76,7 +75,11 @@
 							</view>
 						</view>
 						<view class="summary-card orange-summary">
-							<view class="trend-icon"><view class="trend-line"></view></view>
+							<view class="weekly-clock-icon">
+								<view class="weekly-clock-face">
+									<view class="weekly-clock-hour"></view><view class="weekly-clock-minute"></view><view class="weekly-clock-center"></view>
+								</view>
+							</view>
 							<view class="summary-copy">
 								<text class="summary-label">本周逾期值</text>
 								<view><text class="summary-number orange-number">{{ weeklyOverdueScore }}</text><text class="summary-total"> 天</text></view>
@@ -123,11 +126,12 @@
 					<view v-else-if="viewMode === 'search' && searchQuery && filteredActiveTasks.length === 0" class="empty-state compact-empty">
 						<view class="empty-search"></view><text class="empty-title">没有匹配的任务</text><text class="empty-copy">换一个关键词试试</text>
 					</view>
-					<view v-else-if="viewMode === 'list' || searchQuery" class="task-grid">
-						<task-card title="未完成" tone="red" icon="hourglass" :tasks="displayOverdueTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" />
-						<task-card title="今天" tone="blue" icon="sun" :tasks="displayTodayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" />
-						<task-card title="已完成" tone="green" icon="check" :tasks="displayCompletedTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" />
-						<task-card title="未来" tone="purple" icon="calendar" :tasks="displayFutureTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" />
+					<task-list-rows v-else-if="viewMode === 'search' && searchQuery" :tasks="filteredActiveTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" />
+					<view v-else-if="viewMode === 'list'" class="task-grid">
+						<task-card title="未完成" tone="red" icon="hourglass" :tasks="displayOverdueTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('overdue')" />
+						<task-card title="今天" tone="blue" icon="sun" :tasks="displayTodayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('today')" />
+						<task-card title="已完成" tone="green" icon="check" :tasks="displayCompletedTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('completed')" />
+						<task-card title="未来" tone="purple" icon="calendar" :tasks="displayFutureTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('future')" />
 					</view>
 				</template>
 
@@ -156,6 +160,7 @@
 
 <script>
 	import TaskCard from '../../components/TaskCard.vue'
+	import TaskListRows from '../../components/TaskListRows.vue'
 
 	const SECRET_STORAGE_KEY = 'daylist-sync-secret-v1'
 	const pad = (value) => String(value).padStart(2, '0')
@@ -167,7 +172,7 @@
 	const daysBetween = (earlier, later) => Math.max(0, Math.round((parseDate(later) - parseDate(earlier)) / 86400000))
 
 	export default {
-		components: { TaskCard },
+		components: { TaskCard, TaskListRows },
 		data() {
 			return {
 				accessState: 'loading', accessBusy: false, accessError: '', secretInput: '', secretConfirm: '', secret: '', secretGateEnabled: true, taskService: null,
@@ -242,7 +247,11 @@
 			displayFutureTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date > this.currentDate).sort(this.sortByDateThenCreated) }
 		},
 		onLoad() { this.startMetricClock(); this.bootstrap() },
-		onShow() { const today = localDateString(); if (today !== this.currentDate) this.currentDate = today },
+		onShow() {
+			const today = localDateString()
+			if (today !== this.currentDate) this.currentDate = today
+			if (this.accessState === 'ready') this.loadTasks()
+		},
 		onUnload() { this.stopMetricClock() },
 		beforeUnmount() { this.stopMetricClock() },
 		onPullDownRefresh() {
@@ -373,10 +382,10 @@
 				finally { this.mutationBusy = false }
 			},
 			openSearch() { this.searchQuery = ''; this.viewMode = 'search' },
+			openCategory(category) { uni.navigateTo({ url: `/pages/task-list/task-list?category=${category}` }) },
 			openTrash() { this.viewMode = 'trash' },
 			closeSubView() { this.viewMode = 'list'; this.searchQuery = '' },
 			formatFullDate(value) { const date = parseDate(value); return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日` },
-			compactCount(value) { return value > 99 ? '99+' : value },
 			friendlyError(error, fallback) {
 				const message = error && (error.errMsg || error.message)
 				if (!message) return fallback
@@ -399,21 +408,25 @@
 	.icon-button { position:relative; display:flex; align-items:center; justify-content:center; width:76rpx; height:76rpx; margin:0; padding:0; border:1rpx solid rgba(85,73,130,.12); border-radius:50%; background:rgba(255,255,255,.7); box-shadow:0 8rpx 22rpx rgba(77,65,120,.05); }
 	.search-glyph { position:relative; width:27rpx; height:27rpx; border:5rpx solid #171824; border-radius:50%; }
 	.search-glyph::after { content:''; position:absolute; width:18rpx; height:5rpx; right:-15rpx; bottom:-8rpx; border-radius:4rpx; background:#171824; transform:rotate(46deg); }
+	.icon-button>.search-glyph { transform:translate(-5rpx,-5rpx); }
 	.search-glyph.small { width:21rpx; height:21rpx; border-width:4rpx; } .search-glyph.small::after { width:14rpx; height:4rpx; right:-12rpx; bottom:-7rpx; }
 	.trash-glyph,.large-trash-glyph { position:relative; width:28rpx; height:31rpx; border:4rpx solid #171824; border-top:none; border-radius:3rpx 3rpx 7rpx 7rpx; }
 	.trash-glyph::before,.large-trash-glyph::before { content:''; position:absolute; left:-6rpx; top:-8rpx; width:33rpx; height:4rpx; border-radius:3rpx; background:#171824; }
 	.trash-glyph::after,.large-trash-glyph::after { content:''; position:absolute; left:7rpx; top:-14rpx; width:12rpx; height:5rpx; border:4rpx solid #171824; border-bottom:none; border-radius:5rpx 5rpx 0 0; }
 	.trash-glyph>view,.large-trash-glyph>view { position:absolute; left:10rpx; top:7rpx; width:4rpx; height:14rpx; border-radius:3rpx; background:#171824; }
-	.action-badge { position:absolute; right:-4rpx; top:-5rpx; min-width:30rpx; height:30rpx; padding:0 7rpx; border:3rpx solid #faf9ff; border-radius:18rpx; background:#ef4b54; color:#fff; font-size:18rpx; line-height:25rpx; text-align:center; }
+	.icon-button>.trash-glyph { transform:translate(1rpx,6rpx); }
 	.summary-grid,.task-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18rpx; } .summary-grid { margin-bottom:22rpx; }
 	.summary-card { display:flex; align-items:center; min-height:164rpx; padding:24rpx 20rpx; border:1rpx solid rgba(111,70,232,.25); border-radius:27rpx; background:linear-gradient(135deg,rgba(250,248,255,.95),rgba(239,232,255,.85)); box-shadow:0 10rpx 28rpx rgba(96,68,161,.06); }
 	.orange-summary { border-color:rgba(244,123,36,.25); background:linear-gradient(135deg,rgba(255,252,247,.98),rgba(255,239,224,.85)); }
-	.summary-ring,.trend-icon { position:relative; flex:0 0 auto; width:76rpx; height:76rpx; margin-right:17rpx; border:11rpx solid rgba(111,70,232,.17); border-top-color:#6f46e8; border-right-color:#6f46e8; border-radius:50%; }
+	.summary-ring { position:relative; flex:0 0 auto; width:76rpx; height:76rpx; margin-right:17rpx; border:11rpx solid rgba(111,70,232,.17); border-top-color:#6f46e8; border-right-color:#6f46e8; border-radius:50%; }
 	.mini-clipboard { position:absolute; left:17rpx; top:16rpx; width:23rpx; height:28rpx; border-radius:5rpx; background:#6f46e8; }
 	.mini-clipboard::before { content:''; position:absolute; left:6rpx; top:-5rpx; width:11rpx; height:8rpx; border-radius:5rpx; background:#6f46e8; }
 	.mini-clipboard>view { width:10rpx; height:3rpx; margin:10rpx auto 0; border-radius:2rpx; background:#fff; box-shadow:0 7rpx 0 #fff; }
-	.trend-icon { border:none; background:rgba(244,123,36,.13); } .trend-line { position:absolute; left:16rpx; top:36rpx; width:45rpx; height:5rpx; border-radius:4rpx; background:#f47b24; transform:rotate(-42deg); }
-	.trend-line::after { content:''; position:absolute; right:-2rpx; top:-9rpx; width:15rpx; height:15rpx; border-top:5rpx solid #f47b24; border-right:5rpx solid #f47b24; }
+	.weekly-clock-icon { display:flex; flex:0 0 auto; align-items:center; justify-content:center; width:76rpx; height:76rpx; margin-right:17rpx; border-radius:50%; background:rgba(244,123,36,.13); }
+	.weekly-clock-face { position:relative; width:43rpx; height:43rpx; border:5rpx solid #f47b24; border-radius:50%; }
+	.weekly-clock-hour,.weekly-clock-minute { position:absolute; z-index:1; left:18rpx; bottom:18rpx; width:4rpx; border-radius:4rpx; background:#f47b24; transform-origin:50% 100%; }
+	.weekly-clock-hour { height:12rpx; transform:rotate(0deg); } .weekly-clock-minute { height:15rpx; transform:rotate(125deg); }
+	.weekly-clock-center { position:absolute; z-index:2; left:16rpx; top:16rpx; width:7rpx; height:7rpx; border-radius:50%; background:#f47b24; }
 	.summary-copy { display:flex; min-width:0; flex-direction:column; } .summary-label { margin-bottom:2rpx; color:#30313f; font-size:24rpx; font-weight:620; }
 	.summary-number { color:#10111b; font-size:49rpx; font-weight:720; line-height:1.1; } .summary-total { color:#30313f; font-size:25rpx; } .orange-number { color:#ef5f16; } .summary-caption { margin-top:6rpx; color:#727388; font-size:20rpx; }
 	.add-card { display:flex; align-items:center; height:110rpx; margin-bottom:25rpx; padding:12rpx 13rpx 12rpx 16rpx; border:2rpx solid rgba(111,70,232,.2); border-radius:27rpx; background:rgba(255,255,255,.9); box-shadow:0 14rpx 34rpx rgba(82,57,146,.07); }
