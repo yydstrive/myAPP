@@ -17,7 +17,7 @@
 				<text class="empty-title">{{ emptyTitle }}</text>
 				<text class="empty-copy">返回首页可继续添加或调整任务</text>
 			</view>
-			<task-list-rows v-else :tasks="displayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" />
+			<task-list-rows v-else :tasks="displayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @rename="renameTask" />
 		</view>
 	</view>
 </template>
@@ -107,6 +107,7 @@
 				finally { this.loading = false }
 			},
 			async toggleTask(task) { await this.mutate('setCompleted', { id: task._id, completed: !task.completed }, '更新失败') },
+			async renameTask({ task, title }) { await this.mutate('renameTask', { id: task._id, title }, '修改失败') },
 			async moveToTrash(task) {
 				const ok = await this.mutate('moveToTrash', { id: task._id }, '删除失败')
 				if (ok) uni.showToast({ title: '已移入回收站', icon: 'none' })

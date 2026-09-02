@@ -126,7 +126,7 @@
 					<view v-else-if="viewMode === 'search' && searchQuery && filteredActiveTasks.length === 0" class="empty-state compact-empty">
 						<view class="empty-search"></view><text class="empty-title">没有匹配的任务</text><text class="empty-copy">换一个关键词试试</text>
 					</view>
-					<task-list-rows v-else-if="viewMode === 'search' && searchQuery" :tasks="filteredActiveTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" />
+					<task-list-rows v-else-if="viewMode === 'search' && searchQuery" :tasks="filteredActiveTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @rename="renameTask" />
 					<view v-else-if="viewMode === 'list'" class="task-grid">
 						<task-card title="未完成" tone="red" icon="hourglass" :tasks="displayOverdueTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('overdue')" />
 						<task-card title="今天" tone="blue" icon="sun" :tasks="displayTodayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('today')" />
@@ -368,6 +368,7 @@
 				finally { this.mutationBusy = false }
 			},
 			async toggleTask(task) { await this.mutate('setCompleted', { id: task._id, completed: !task.completed }, '更新失败') },
+			async renameTask({ task, title }) { await this.mutate('renameTask', { id: task._id, title }, '修改失败') },
 			async moveToTrash(task) { const ok = await this.mutate('moveToTrash', { id: task._id }, '删除失败'); if (ok) uni.showToast({ title: '已移入回收站', icon: 'none' }) },
 			async restoreTask(task) { const ok = await this.mutate('restoreTask', { id: task._id }, '恢复失败'); if (ok) uni.showToast({ title: '已恢复', icon: 'success' }) },
 			confirmPermanentDelete(task) {

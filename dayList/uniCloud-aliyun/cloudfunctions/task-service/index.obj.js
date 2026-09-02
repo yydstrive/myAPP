@@ -159,6 +159,15 @@ module.exports = {
 		return { updated: true }
 	},
 
+	async renameTask(payload = {}) {
+		await requireSecret(payload.secret)
+		await tasks.doc(requireTaskId(payload.id)).update({
+			title: requireTitle(payload.title),
+			updated_at: Date.now()
+		})
+		return { updated: true }
+	},
+
 	async moveToTrash(payload = {}) {
 		await requireSecret(payload.secret)
 		await tasks.doc(requireTaskId(payload.id)).update({ deleted: true, deleted_at: Date.now(), updated_at: Date.now() })
