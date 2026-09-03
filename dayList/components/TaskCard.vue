@@ -7,7 +7,7 @@
 					<view v-for="ray in 8" :key="ray" class="today-sun-ray" :class="`ray-${ray}`"><view></view></view>
 					<view class="today-sun-core"></view>
 				</view>
-				<text v-else-if="icon === 'check'">✓</text>
+				<view v-else-if="icon === 'check'" class="completed-check-glyph"></view>
 				<view v-else class="future-calendar-glyph">
 					<view class="future-calendar-ring ring-left"></view>
 					<view class="future-calendar-ring ring-right"></view>
@@ -19,13 +19,13 @@
 			<text class="card-count">{{ tasks.length }}</text>
 			<button class="card-open-button" :aria-label="`查看全部${title}任务`" @tap="$emit('open')">›</button>
 		</view>
-		<view v-if="tasks.length" class="card-tasks">
+		<scroll-view v-if="tasks.length" scroll-y class="card-tasks" :show-scrollbar="false">
 			<view v-for="task in tasks" :key="task._id" class="task-swipe">
 				<button class="swipe-delete" :class="{ visible: openTaskId === task._id }" aria-label="删除任务" @tap="removeTask(task)">删除</button>
 				<view class="task-row" :class="{ revealed: openTaskId === task._id }" @touchstart="onTouchStart(task, $event)" @touchend="onTouchEnd(task, $event)">
 					<view class="task-checkbox-anchor">
 						<button class="task-checkbox" :class="{ checked: task.completed }" :aria-label="task.completed ? '标记为未完成' : '标记为已完成'" @tap="$emit('toggle', task)">
-							<text v-if="task.completed">✓</text>
+							<view v-if="task.completed" class="task-check-glyph"></view>
 						</button>
 					</view>
 					<view class="task-copy">
@@ -39,7 +39,7 @@
 					</view>
 				</view>
 			</view>
-		</view>
+		</scroll-view>
 		<view v-else class="card-empty">暂无任务</view>
 	</view>
 </template>
@@ -92,18 +92,19 @@
 </script>
 
 <style>
-	.task-card { position:relative; min-height:420rpx; padding:23rpx 20rpx 20rpx; overflow:hidden; border:1rpx solid; border-radius:27rpx; box-shadow:0 12rpx 30rpx rgba(58,51,93,.065); }
+	.task-card { display:flex; position:relative; height:420rpx; padding:23rpx 20rpx 20rpx; overflow:hidden; flex-direction:column; border:1rpx solid; border-radius:27rpx; box-shadow:0 12rpx 30rpx rgba(58,51,93,.065); }
 	.task-card::after { content:''; position:absolute; right:-35rpx; bottom:-42rpx; width:135rpx; height:135rpx; border-radius:50%; opacity:.25; pointer-events:none; }
 	.tone-red { border-color:rgba(255,87,96,.26); background:linear-gradient(145deg,rgba(255,253,253,.98),rgba(255,246,246,.94)); }
 	.tone-blue { border-color:rgba(68,126,247,.23); background:linear-gradient(145deg,rgba(253,254,255,.98),rgba(244,248,255,.94)); }
 	.tone-green { border-color:rgba(57,183,83,.24); background:linear-gradient(145deg,rgba(253,255,253,.98),rgba(243,252,245,.94)); }
 	.tone-purple { border-color:rgba(123,76,237,.24); background:linear-gradient(145deg,rgba(255,254,255,.98),rgba(247,243,255,.95)); }
 	.tone-red::after { background:#ffd9dc; } .tone-blue::after { background:#dce9ff; } .tone-green::after { background:#d6f3dc; } .tone-purple::after { background:#e5dbff; }
-	.card-heading { display:flex; position:relative; z-index:1; align-items:center; min-width:0; margin-bottom:17rpx; }
+	.card-heading { display:flex; position:relative; z-index:1; flex:0 0 auto; align-items:center; min-width:0; margin-bottom:17rpx; }
 	.card-icon { display:flex; flex:0 0 52rpx; align-items:center; justify-content:center; width:52rpx; height:52rpx; margin-right:10rpx; border-radius:50%; font-size:28rpx; font-weight:750; }
 	.tone-red .card-icon { background:rgba(239,75,84,.12); color:#ef4b54; } .tone-blue .card-icon { background:rgba(61,112,242,.1); color:#3d70f2; }
 	.tone-green .card-icon { background:rgba(57,173,84,.11); color:#39ad54; } .tone-purple .card-icon { background:rgba(111,70,232,.11); color:#6f46e8; }
 	.card-icon.icon-sun { background:rgba(255,184,43,.17); color:#f2ab16; }
+	.completed-check-glyph { box-sizing:border-box; width:13rpx; height:23rpx; margin-top:-5rpx; border-right:5rpx solid currentColor; border-bottom:5rpx solid currentColor; transform:rotate(45deg); }
 	.today-sun-glyph { position:relative; width:37rpx; height:37rpx; }
 	.today-sun-core { position:absolute; z-index:2; left:11rpx; top:11rpx; width:15rpx; height:15rpx; border-radius:50%; background:#f5b51b; box-shadow:0 0 6rpx rgba(245,181,27,.3); }
 	.today-sun-ray { position:absolute; z-index:1; inset:0; transform-origin:center; }
@@ -120,7 +121,8 @@
 	.card-count { min-width:43rpx; height:43rpx; padding:0 8rpx; border-radius:14rpx; background:rgba(255,255,255,.78); color:inherit; font-size:23rpx; line-height:43rpx; text-align:center; }
 	.card-open-button { display:flex; flex:0 0 29rpx; align-items:center; justify-content:flex-end; width:29rpx; height:48rpx; margin:0 0 0 3rpx; padding:0; border:0 !important; background:transparent !important; box-shadow:none !important; color:currentColor; font-size:42rpx; font-weight:300; line-height:43rpx; }
 	.card-open-button::after { border:0 !important; }
-	.card-tasks { position:relative; z-index:1; }
+	.card-tasks { position:relative; z-index:1; width:100%; height:0; min-height:0; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+	.card-tasks::-webkit-scrollbar { display:none; width:0; height:0; }
 	.task-swipe { position:relative; min-width:0; overflow:hidden; border-bottom:1rpx solid rgba(78,72,105,.075); } .task-swipe:last-child { border-bottom:none; }
 	.task-row { display:flex; position:relative; z-index:2; align-items:flex-start; min-width:0; padding:16rpx 0; transition:transform .22s ease; }
 	.task-row.revealed { transform:translateX(-94rpx); }
@@ -131,7 +133,8 @@
 	.task-checkbox-anchor { display:flex; flex:0 0 39rpx; align-items:center; justify-content:center; width:39rpx; height:35rpx; margin-right:13rpx; }
 	.task-checkbox { display:flex; align-items:center; justify-content:center; width:35rpx; height:35rpx; margin:0; padding:0; border:4rpx solid currentColor !important; border-radius:8rpx; background:rgba(255,255,255,.72) !important; box-shadow:none !important; color:#8b8da0; font-size:23rpx; line-height:1; }
 	.tone-red .task-checkbox { color:#ef4b54; } .tone-blue .task-checkbox { color:#3d70f2; } .tone-green .task-checkbox { color:#39ad54; } .tone-purple .task-checkbox { color:#6f46e8; }
-	.task-checkbox.checked { background:currentColor !important; } .task-checkbox.checked text { color:#fff; }
+	.task-checkbox.checked { background:currentColor !important; }
+	.task-check-glyph { box-sizing:border-box; width:9rpx; height:17rpx; margin-top:-4rpx; border-right:4rpx solid #fff; border-bottom:4rpx solid #fff; transform:rotate(45deg); pointer-events:none; }
 	.task-copy { display:flex; min-width:0; flex:1; flex-direction:column; }
 	.task-title-wrap { position:relative; min-width:0; }
 	.task-title { display:-webkit-box; width:100%; overflow:hidden; color:#292a38; font-size:24rpx; line-height:35rpx; overflow-wrap:anywhere; word-break:break-word; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
@@ -140,5 +143,5 @@
 	.task-meta { min-width:0; color:#8b8c9d; font-size:18rpx; line-height:27rpx; }
 	.overdue-badge { flex:0 0 auto; padding:2rpx 7rpx; border:2rpx solid #f2a1a7; border-radius:10rpx; background:#ffe7e9; box-shadow:0 3rpx 0 rgba(207,53,65,.12); color:#df3541; font-size:16rpx; font-weight:650; line-height:23rpx; white-space:nowrap; }
 	.tone-red .task-meta { color:#e95a62; } .tone-blue .task-meta { color:#557bd7; } .tone-green .task-meta { color:#54a867; } .tone-purple .task-meta { color:#8065c7; }
-	.card-empty { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; min-height:205rpx; color:#aaaaba; font-size:22rpx; text-align:center; }
+	.card-empty { position:relative; z-index:1; display:flex; min-height:0; flex:1; align-items:center; justify-content:center; color:#aaaaba; font-size:22rpx; text-align:center; }
 </style>
