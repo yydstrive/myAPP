@@ -47,6 +47,10 @@
 						<button class="icon-button" aria-label="回收站" @tap="openTrash">
 							<view class="trash-glyph"><view></view></view>
 						</button>
+						<button class="icon-button layout-toggle" :class="{ active: layoutEditing }" :aria-label="layoutEditing ? '保存卡片高度' : '调整卡片高度'" @tap="toggleLayoutEditing">
+							<view v-if="layoutEditing" class="layout-save-glyph"></view>
+							<view v-else class="layout-edit-glyph"><view></view></view>
+						</button>
 					</view>
 				</view>
 
@@ -92,7 +96,7 @@
 						<button class="date-picker-button" :class="{ selected: selectedDate }" aria-label="选择任务日期" @tap="openCalendar">
 							<view class="calendar-glyph"></view><text>{{ selectedDateLabel }}</text>
 						</button>
-						<input v-model="newTaskTitle" class="task-input" maxlength="120" placeholder="添加任务…" confirm-type="done" @confirm="createTask" />
+					<input v-model="newTaskTitle" class="task-input" maxlength="120" placeholder=" 添加任务" confirm-type="done" @confirm="createTask" />
 						<button class="add-button" :class="{ disabled: !canCreateTask || loadingTasks }" :disabled="!canCreateTask || mutationBusy || loadingTasks" @tap="createTask"><text>+</text></button>
 					</view>
 
@@ -127,11 +131,31 @@
 						<view class="empty-search"></view><text class="empty-title">没有匹配的任务</text><text class="empty-copy">换一个关键词试试</text>
 					</view>
 					<task-list-rows v-else-if="viewMode === 'search' && searchQuery" :tasks="filteredActiveTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @rename="renameTask" />
-					<view v-else-if="viewMode === 'list'" class="task-grid">
-						<task-card title="未完成" tone="red" icon="hourglass" :tasks="displayOverdueTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('overdue')" />
-						<task-card title="今天" tone="blue" icon="sun" :tasks="displayTodayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('today')" />
-						<task-card title="已完成" tone="green" icon="check" :tasks="displayCompletedTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('completed')" />
-						<task-card title="未来" tone="purple" icon="calendar" :tasks="displayFutureTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('future')" />
+					<view v-else-if="viewMode === 'list'" class="task-grid" :class="{ editing: layoutEditing }">
+						<view class="task-row-shell">
+							<view class="task-card-row">
+								<task-card title="未完成" tone="red" icon="hourglass" :card-height="cardRowHeights.top" :tasks="displayOverdueTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('overdue')" />
+								<task-card title="今天" tone="blue" icon="sun" :card-height="cardRowHeights.top" :tasks="displayTodayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('today')" />
+							</view>
+							<view v-if="layoutEditing" class="row-resizer">
+								<view class="resize-touch" aria-label="调整第一排卡片高度" @touchstart.stop="startRowResize('top', $event)" @touchmove.stop.prevent="onRowResize" @touchend.stop="endRowResize" @touchcancel.stop="endRowResize" @mousedown.stop.prevent="startRowResize('top', $event)">
+									<view class="resize-grip"><view></view></view>
+								</view>
+								<view class="resize-line"></view>
+							</view>
+						</view>
+						<view class="task-row-shell">
+							<view class="task-card-row">
+								<task-card title="已完成" tone="green" icon="check" :card-height="cardRowHeights.bottom" :tasks="displayCompletedTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('completed')" />
+								<task-card title="未来" tone="purple" icon="calendar" :card-height="cardRowHeights.bottom" :tasks="displayFutureTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @open="openCategory('future')" />
+							</view>
+							<view v-if="layoutEditing" class="row-resizer">
+								<view class="resize-touch" aria-label="调整第二排卡片高度" @touchstart.stop="startRowResize('bottom', $event)" @touchmove.stop.prevent="onRowResize" @touchend.stop="endRowResize" @touchcancel.stop="endRowResize" @mousedown.stop.prevent="startRowResize('bottom', $event)">
+									<view class="resize-grip"><view></view></view>
+								</view>
+								<view class="resize-line"></view>
+							</view>
+						</view>
 					</view>
 				</template>
 
@@ -163,6 +187,10 @@
 	import TaskListRows from '../../components/TaskListRows.vue'
 
 	const SECRET_STORAGE_KEY = 'daylist-sync-secret-v1'
+	const CARD_ROW_HEIGHTS_STORAGE_KEY = 'daylist-card-row-heights-v1'
+	const DEFAULT_CARD_ROW_HEIGHT = 420
+	const MIN_CARD_ROW_HEIGHT = 260
+	const MAX_CARD_ROW_HEIGHT = 760
 	const pad = (value) => String(value).padStart(2, '0')
 	const localDateString = (date = new Date()) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 	const parseDate = (value) => {
@@ -178,7 +206,9 @@
 				accessState: 'loading', accessBusy: false, accessError: '', secretInput: '', secretConfirm: '', secret: '', secretGateEnabled: true, taskService: null,
 				tasks: [], loadingTasks: false, mutationBusy: false, syncError: '', viewMode: 'list', searchQuery: '', newTaskTitle: '', selectedDate: '',
 				currentDate: localDateString(), calendarOpen: false, calendarCursor: localDateString(), calendarWeekdays: ['一', '二', '三', '四', '五', '六', '日'],
-				metricNow: Date.now(), metricTimerId: null
+				metricNow: Date.now(), metricTimerId: null,
+				layoutEditing: false, cardRowHeights: { top: DEFAULT_CARD_ROW_HEIGHT, bottom: DEFAULT_CARD_ROW_HEIGHT },
+				resizingRow: '', resizeStartY: 0, resizeStartHeight: DEFAULT_CARD_ROW_HEIGHT, resizeViewportWidth: 375, lastTouchResizeAt: 0
 			}
 		},
 		computed: {
@@ -246,19 +276,81 @@
 			displayCompletedTasks() { return this.filteredActiveTasks.filter((task) => task.completed).sort((a, b) => (b.completed_at || 0) - (a.completed_at || 0)) },
 			displayFutureTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date > this.currentDate).sort(this.sortByDateThenCreated) }
 		},
-		onLoad() { this.startMetricClock(); this.bootstrap() },
+		onLoad() { this.restoreCardRowHeights(); this.startMetricClock(); this.bootstrap() },
 		onShow() {
 			const today = localDateString()
 			if (today !== this.currentDate) this.currentDate = today
 			if (this.accessState === 'ready') this.loadTasks()
 		},
-		onUnload() { this.stopMetricClock() },
-		beforeUnmount() { this.stopMetricClock() },
+		onUnload() { this.endRowResize(); this.stopMetricClock() },
+		beforeUnmount() { this.endRowResize(); this.stopMetricClock() },
 		onPullDownRefresh() {
 			if (this.accessState !== 'ready') return uni.stopPullDownRefresh()
 			this.loadTasks().finally(() => uni.stopPullDownRefresh())
 		},
 		methods: {
+			normalizeCardRowHeight(value) {
+				const height = Number(value)
+				if (!Number.isFinite(height)) return DEFAULT_CARD_ROW_HEIGHT
+				return Math.min(MAX_CARD_ROW_HEIGHT, Math.max(MIN_CARD_ROW_HEIGHT, Math.round(height)))
+			},
+			restoreCardRowHeights() {
+				const saved = uni.getStorageSync(CARD_ROW_HEIGHTS_STORAGE_KEY)
+				if (!saved || typeof saved !== 'object') return
+				this.cardRowHeights = {
+					top: this.normalizeCardRowHeight(saved.top),
+					bottom: this.normalizeCardRowHeight(saved.bottom)
+				}
+			},
+			toggleLayoutEditing() {
+				if (!this.layoutEditing) {
+					this.layoutEditing = true
+					return
+				}
+				this.endRowResize()
+				uni.setStorageSync(CARD_ROW_HEIGHTS_STORAGE_KEY, { ...this.cardRowHeights })
+				this.layoutEditing = false
+				uni.showToast({ title: '卡片高度已保存', icon: 'none' })
+			},
+			resizeEventPoint(event) {
+				if (event.touches && event.touches[0]) return event.touches[0]
+				if (typeof event.clientY === 'number') return event
+				return null
+			},
+			startRowResize(row, event) {
+				if (!this.layoutEditing) return
+				if (event.type === 'mousedown' && Date.now() - this.lastTouchResizeAt < 800) return
+				if (event.type === 'touchstart') this.lastTouchResizeAt = Date.now()
+				const point = this.resizeEventPoint(event)
+				if (!point) return
+				this.resizingRow = row
+				this.resizeStartY = point.clientY
+				this.resizeStartHeight = this.cardRowHeights[row]
+				const systemInfo = uni.getSystemInfoSync()
+				this.resizeViewportWidth = systemInfo.windowWidth || 375
+				// #ifdef H5
+				if (event.type === 'mousedown') {
+					document.addEventListener('mousemove', this.onRowResize, { passive: false })
+					document.addEventListener('mouseup', this.endRowResize)
+				}
+				// #endif
+			},
+			onRowResize(event) {
+				if (!this.resizingRow) return
+				const point = this.resizeEventPoint(event)
+				if (!point) return
+				if (event.cancelable) event.preventDefault()
+				const deltaRpx = (point.clientY - this.resizeStartY) * 750 / this.resizeViewportWidth
+				const height = this.normalizeCardRowHeight(this.resizeStartHeight + deltaRpx)
+				this.cardRowHeights = { ...this.cardRowHeights, [this.resizingRow]: height }
+			},
+			endRowResize() {
+				this.resizingRow = ''
+				// #ifdef H5
+				document.removeEventListener('mousemove', this.onRowResize)
+					document.removeEventListener('mouseup', this.endRowResize)
+				// #endif
+			},
 			startMetricClock() {
 				this.stopMetricClock()
 				this.metricNow = Date.now()
@@ -405,8 +497,9 @@
 	.page-content,.access-page { width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto; padding: calc(var(--status-bar-height, 0px) + 30rpx) 24rpx 54rpx; }
 	.topbar,.subbar { display:flex; align-items:center; justify-content:space-between; min-height:90rpx; margin-bottom:20rpx; }
 	.date-heading { display:flex; align-items:center; gap:11rpx; font-size:31rpx; font-weight:650; letter-spacing:.5rpx; }
-	.date-dot { color:#77798b; } .weekday { color:#45465a; } .top-actions { display:flex; gap:16rpx; }
+	.date-dot { color:#77798b; } .weekday { color:#45465a; } .top-actions { display:flex; gap:12rpx; }
 	.icon-button { position:relative; display:flex; align-items:center; justify-content:center; width:76rpx; height:76rpx; margin:0; padding:0; border:1rpx solid rgba(85,73,130,.12); border-radius:50%; background:rgba(255,255,255,.7); box-shadow:0 8rpx 22rpx rgba(77,65,120,.05); }
+	.icon-button::after { border:0 !important; }
 	.search-glyph { position:relative; width:27rpx; height:27rpx; border:5rpx solid #171824; border-radius:50%; }
 	.search-glyph::after { content:''; position:absolute; width:18rpx; height:5rpx; right:-15rpx; bottom:-8rpx; border-radius:4rpx; background:#171824; transform:rotate(46deg); }
 	.icon-button>.search-glyph { transform:translate(-5rpx,-5rpx); }
@@ -416,7 +509,12 @@
 	.trash-glyph::after,.large-trash-glyph::after { content:''; position:absolute; left:7rpx; top:-14rpx; width:12rpx; height:5rpx; border:4rpx solid #171824; border-bottom:none; border-radius:5rpx 5rpx 0 0; }
 	.trash-glyph>view,.large-trash-glyph>view { position:absolute; left:10rpx; top:7rpx; width:4rpx; height:14rpx; border-radius:3rpx; background:#171824; }
 	.icon-button>.trash-glyph { transform:translate(1rpx,6rpx); }
-	.summary-grid,.task-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18rpx; } .summary-grid { margin-bottom:22rpx; }
+	.layout-toggle.active { border-color:rgba(111,70,232,.22); background:rgba(241,236,255,.92); color:#6f46e8; }
+	.layout-edit-glyph { position:relative; width:32rpx; height:9rpx; border-radius:4rpx; background:#171824; transform:rotate(-44deg); }
+	.layout-edit-glyph::before { content:''; position:absolute; left:-8rpx; top:0; border-top:4.5rpx solid transparent; border-bottom:4.5rpx solid transparent; border-right:9rpx solid #171824; }
+	.layout-edit-glyph::after { content:''; position:absolute; right:-6rpx; top:0; width:5rpx; height:9rpx; border-left:3rpx solid rgba(255,255,255,.9); border-radius:1rpx 4rpx 4rpx 1rpx; background:#171824; }
+	.layout-save-glyph { box-sizing:border-box; width:16rpx; height:29rpx; margin-top:-7rpx; border-right:6rpx solid currentColor; border-bottom:6rpx solid currentColor; transform:rotate(45deg); }
+	.summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18rpx; margin-bottom:22rpx; }
 	.summary-card { display:flex; align-items:center; min-height:164rpx; padding:24rpx 20rpx; border:1rpx solid rgba(111,70,232,.25); border-radius:27rpx; background:linear-gradient(135deg,rgba(250,248,255,.95),rgba(239,232,255,.85)); box-shadow:0 10rpx 28rpx rgba(96,68,161,.06); }
 	.orange-summary { border-color:rgba(244,123,36,.25); background:linear-gradient(135deg,rgba(255,252,247,.98),rgba(255,239,224,.85)); }
 	.summary-ring { position:relative; flex:0 0 auto; width:76rpx; height:76rpx; margin-right:17rpx; border:11rpx solid rgba(111,70,232,.17); border-top-color:#6f46e8; border-right-color:#6f46e8; border-radius:50%; }
@@ -457,7 +555,15 @@
 	.calendar-cancel,.calendar-today { height:66rpx; margin:0; padding:0 25rpx; border:0 !important; border-radius:18rpx; outline:none; box-shadow:none !important; font-size:23rpx; line-height:66rpx; }
 	.calendar-cancel::after,.calendar-today::after { border:0 !important; }
 	.calendar-cancel { background:#f4f3f7; color:#777889; } .calendar-today { background:#efe9ff; color:#6f46e8; font-weight:650; }
-	.task-grid { align-items:stretch; }
+	.task-grid { display:flex; flex-direction:column; gap:18rpx; }
+	.task-grid.editing { gap:40rpx; padding-bottom:24rpx; }
+	.task-row-shell { position:relative; }
+	.task-card-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:18rpx; }
+	.row-resizer { position:absolute; z-index:20; left:0; right:0; bottom:-22rpx; display:flex; align-items:center; height:44rpx; pointer-events:none; }
+	.resize-touch { display:flex; flex:0 0 58rpx; align-items:center; justify-content:flex-start; width:58rpx; height:44rpx; touch-action:none; user-select:none; pointer-events:auto; }
+	.resize-grip { display:flex; align-items:center; justify-content:center; width:42rpx; height:27rpx; border:1rpx solid rgba(111,70,232,.2); border-radius:9rpx; background:#f1ecff; box-shadow:0 4rpx 12rpx rgba(85,54,164,.13); color:#7050ce; }
+	.resize-grip view { width:19rpx; height:2rpx; border-radius:2rpx; background:currentColor; box-shadow:0 -6rpx 0 currentColor,0 6rpx 0 currentColor; }
+	.resize-line { min-width:0; height:2rpx; flex:1; background:linear-gradient(90deg,rgba(111,70,232,.38),rgba(111,70,232,.08)); pointer-events:none; }
 	.subbar { justify-content:flex-start; } .back-button { width:70rpx; height:70rpx; margin:0 15rpx 0 0; padding:0 0 10rpx; border-radius:50%; background:rgba(255,255,255,.74); color:#252632; font-size:61rpx; font-weight:260; line-height:58rpx; }
 	.subbar-title { flex:1; font-size:34rpx; font-weight:720; text-align:center; } .subbar-spacer { width:85rpx; } .searchbar { gap:3rpx; }
 	.search-box { display:flex; align-items:center; min-width:0; flex:1; height:76rpx; padding:0 20rpx 0 25rpx; border:1rpx solid rgba(111,70,232,.18); border-radius:25rpx; background:rgba(255,255,255,.86); }

@@ -1,5 +1,5 @@
 <template>
-	<view class="task-card" :class="`tone-${tone}`">
+	<view class="task-card" :class="`tone-${tone}`" :style="{ height: `${cardHeight}rpx` }">
 		<view class="card-heading">
 			<view class="card-icon" :class="`icon-${icon}`">
 				<text v-if="icon === 'hourglass'">⌛</text>
@@ -53,6 +53,7 @@
 			title: { type: String, required: true },
 			tone: { type: String, required: true },
 			icon: { type: String, required: true },
+			cardHeight: { type: Number, default: 420 },
 			tasks: { type: Array, default: () => [] },
 			today: { type: String, required: true }
 		},
