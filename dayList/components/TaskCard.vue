@@ -16,8 +16,8 @@
 				</view>
 			</view>
 			<text class="card-title">{{ title }}</text>
-			<text class="card-count">{{ tasks.length }}</text>
-			<button class="card-open-button" :aria-label="`查看全部${title}任务`" @tap="$emit('open')">›</button>
+			<view class="card-count"><text>{{ tasks.length }}</text></view>
+			<button class="card-open-button" :aria-label="`查看全部${title}任务`" @tap="$emit('open')"><view class="card-chevron"></view></button>
 		</view>
 		<scroll-view v-if="tasks.length" scroll-y class="card-tasks" :show-scrollbar="false">
 			<view v-for="task in tasks" :key="task._id" class="task-swipe">
@@ -34,7 +34,10 @@
 						</view>
 						<view class="task-meta-row">
 							<text class="task-meta">{{ formatTaskDate(task.task_date, today) }}</text>
-							<text v-if="tone === 'red'" class="overdue-badge">逾期 {{ overdueDays(task) }} 天</text>
+							<view class="task-badges">
+								<text v-if="taskPriority(task) !== 'medium'" class="priority-badge" :class="`priority-${taskPriority(task)}`">{{ taskPriority(task) === 'high' ? '高' : '低' }}</text>
+								<text v-if="tone === 'red'" class="overdue-badge">逾期 {{ overdueDays(task) }} 天</text>
+							</view>
 						</view>
 					</view>
 				</view>
@@ -63,6 +66,9 @@
 		},
 		methods: {
 			formatTaskDate,
+			taskPriority(task) {
+				return task && (task.priority === 'low' || task.priority === 'high') ? task.priority : 'medium'
+			},
 			overdueDays(task) {
 				const due = new Date(`${task.task_date}T12:00:00`)
 				const today = new Date(`${this.today}T12:00:00`)
@@ -119,9 +125,10 @@
 	.future-calendar-dots { display:grid; position:absolute; left:5rpx; right:5rpx; bottom:4rpx; grid-template-columns:repeat(2,4rpx); justify-content:space-between; row-gap:3rpx; }
 	.future-calendar-dots view { width:4rpx; height:4rpx; border-radius:1rpx; background:#7044dc; }
 	.card-title { min-width:0; flex:1; font-size:31rpx; font-weight:720; } .tone-red .card-title { color:#f0353f; } .tone-blue .card-title { color:#3473f2; } .tone-green .card-title { color:#31ae4d; } .tone-purple .card-title { color:#7044dc; }
-	.card-count { min-width:43rpx; height:43rpx; padding:0 8rpx; border-radius:14rpx; background:rgba(255,255,255,.78); color:inherit; font-size:23rpx; line-height:43rpx; text-align:center; }
-	.card-open-button { display:flex; flex:0 0 29rpx; align-items:center; justify-content:flex-end; width:29rpx; height:48rpx; margin:0 0 0 3rpx; padding:0; border:0 !important; background:transparent !important; box-shadow:none !important; color:currentColor; font-size:42rpx; font-weight:300; line-height:43rpx; }
+	.card-count { box-sizing:border-box; display:flex; flex:0 0 43rpx; align-items:center; justify-content:center; width:43rpx; min-width:43rpx; height:43rpx; margin-left:4rpx; padding:0; border-radius:14rpx; background:rgba(255,255,255,.9); color:inherit; font-family:Arial,sans-serif; font-size:23rpx; font-weight:400; line-height:1; text-align:center; }
+	.card-open-button { display:flex; flex:0 0 31rpx; align-items:center; justify-content:center; width:31rpx; height:48rpx; margin:0 0 0 3rpx; padding:0; border:0 !important; background:transparent !important; box-shadow:none !important; color:currentColor; line-height:1; }
 	.card-open-button::after { border:0 !important; }
+	.card-chevron { box-sizing:border-box; width:13rpx; height:13rpx; border-top:4rpx solid currentColor; border-right:4rpx solid currentColor; transform:translateX(-2rpx) rotate(45deg); }
 	.card-tasks { position:relative; z-index:1; width:100%; height:0; min-height:0; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 	.card-tasks::-webkit-scrollbar { display:none; width:0; height:0; }
 	.task-swipe { position:relative; min-width:0; overflow:hidden; border-bottom:1rpx solid rgba(78,72,105,.075); } .task-swipe:last-child { border-bottom:none; }
@@ -142,7 +149,10 @@
 	.task-title.completed { color:#9293a2; text-decoration:line-through; }
 	.task-meta-row { display:flex; min-width:0; align-items:center; justify-content:space-between; gap:8rpx; margin-top:5rpx; }
 	.task-meta { min-width:0; color:#8b8c9d; font-size:18rpx; line-height:27rpx; }
-	.overdue-badge { flex:0 0 auto; padding:2rpx 7rpx; border:2rpx solid #f2a1a7; border-radius:10rpx; background:#ffe7e9; box-shadow:0 3rpx 0 rgba(207,53,65,.12); color:#df3541; font-size:16rpx; font-weight:650; line-height:23rpx; white-space:nowrap; }
+	.task-badges { display:flex; flex:0 0 auto; align-items:center; justify-content:flex-end; gap:5rpx; }
+	.overdue-badge,.priority-badge { flex:0 0 auto; padding:2rpx 7rpx; border:2rpx solid #f2a1a7; border-radius:10rpx; background:#ffe7e9; box-shadow:0 3rpx 0 rgba(207,53,65,.12); color:#df3541; font-size:16rpx; font-weight:650; line-height:23rpx; white-space:nowrap; }
+	.priority-badge.priority-low { border-color:#f2bc7e; background:#fff0dd; box-shadow:0 3rpx 0 rgba(207,123,37,.11); color:#df7b25; }
+	.priority-badge.priority-high { border-color:#f2a1a7; background:#ffe7e9; color:#df3541; }
 	.tone-red .task-meta { color:#e95a62; } .tone-blue .task-meta { color:#557bd7; } .tone-green .task-meta { color:#54a867; } .tone-purple .task-meta { color:#8065c7; }
 	.card-empty { position:relative; z-index:1; display:flex; min-height:0; flex:1; align-items:center; justify-content:center; color:#aaaaba; font-size:22rpx; text-align:center; }
 </style>

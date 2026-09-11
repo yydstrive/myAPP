@@ -6,7 +6,10 @@
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "日程清单",
 				"backgroundColor": "#f8f7fc",
-				"enablePullDownRefresh": true
+				"enablePullDownRefresh": false,
+				"app-plus": {
+					"bounce": "none"
+				}
 			}
 		},
 		{
@@ -15,7 +18,10 @@
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "任务列表",
 				"backgroundColor": "#f8f7fc",
-				"enablePullDownRefresh": true
+				"enablePullDownRefresh": false,
+				"app-plus": {
+					"bounce": "none"
+				}
 			}
 		}
 	],

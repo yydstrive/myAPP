@@ -83,6 +83,12 @@ function requireDate(dateInput) {
 	return dateInput
 }
 
+function requirePriority(priorityInput) {
+	const priority = priorityInput || 'medium'
+	if (!['low', 'medium', 'high'].includes(priority)) throw appError('INVALID_PRIORITY', '任务优先级无效')
+	return priority
+}
+
 module.exports = {
 	async bootstrapSession(payload = {}) {
 		const security = await getSecuritySetting()
@@ -138,6 +144,7 @@ module.exports = {
 		const result = await tasks.add({
 			title: requireTitle(payload.title),
 			task_date: requireDate(payload.taskDate),
+			priority: requirePriority(payload.priority),
 			completed: false,
 			completed_at: 0,
 			deleted: false,

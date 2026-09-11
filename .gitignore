@@ -10,6 +10,7 @@ work/
 # HBuilderX 本地状态与编译产物
 **/.hbuilderx/
 **/unpackage/
+**/dist/
 
 # Android / iOS 签名材料
 **/*.keystore

@@ -24,6 +24,12 @@
       "title": "任务日期",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
     },
+    "priority": {
+      "bsonType": "string",
+      "title": "任务优先级",
+      "enum": ["low", "medium", "high"],
+      "defaultValue": "medium"
+    },
     "completed": {
       "bsonType": "bool",
       "title": "是否完成",

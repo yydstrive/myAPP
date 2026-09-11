@@ -13,7 +13,7 @@
 			<view v-if="loading" class="detail-loading"><view class="loading-dot"></view><text>同步中…</text></view>
 			<view v-else-if="error" class="detail-error" @tap="loadTasks"><text>{{ error }}</text><text>点击重试</text></view>
 			<view v-else-if="displayTasks.length === 0" class="detail-empty">
-				<view class="empty-mark">✓</view>
+				<view class="empty-mark"><view class="empty-check-glyph"></view></view>
 				<text class="empty-title">{{ emptyTitle }}</text>
 				<text class="empty-copy">返回首页可继续添加或调整任务</text>
 			</view>
@@ -24,6 +24,7 @@
 
 <script>
 	import TaskListRows from '../../components/TaskListRows.vue'
+	import { createTaskService } from '../../services/task-data-service.js'
 
 	const SECRET_STORAGE_KEY = 'daylist-sync-secret-v1'
 	const pad = (value) => String(value).padStart(2, '0')
@@ -54,9 +55,9 @@
 					if (this.category === 'completed') return task.completed
 					return !task.completed && task.task_date > this.currentDate
 				})
-				if (this.category === 'completed') return tasks.sort((a, b) => (b.completed_at || 0) - (a.completed_at || 0))
-				if (this.category === 'today') return tasks.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
-				return tasks.sort((a, b) => a.task_date.localeCompare(b.task_date) || (a.created_at || 0) - (b.created_at || 0))
+				if (this.category === 'completed') return tasks.sort(this.sortCompletedTasks)
+				if (this.category === 'today') return tasks.sort(this.sortByPriorityThenNewest)
+				return tasks.sort(this.sortByDateThenPriorityThenCreated)
 			}
 		},
 		onLoad(options) {
@@ -67,10 +68,24 @@
 			this.currentDate = localDateString()
 			if (this.hasLoaded) this.loadTasks()
 		},
-		onPullDownRefresh() { this.loadTasks().finally(() => uni.stopPullDownRefresh()) },
 		methods: {
+			priorityRank(task) {
+				if (task && task.priority === 'high') return 0
+				if (task && task.priority === 'low') return 2
+				return 1
+			},
+			comparePriority(a, b) { return this.priorityRank(a) - this.priorityRank(b) },
+			sortByDateThenPriorityThenCreated(a, b) {
+				return a.task_date.localeCompare(b.task_date) || this.comparePriority(a, b) || (a.created_at || 0) - (b.created_at || 0)
+			},
+			sortByPriorityThenNewest(a, b) { return this.comparePriority(a, b) || (b.created_at || 0) - (a.created_at || 0) },
+			sortCompletedTasks(a, b) {
+				const aDay = a.completed_at ? localDateString(new Date(a.completed_at)) : ''
+				const bDay = b.completed_at ? localDateString(new Date(b.completed_at)) : ''
+				return bDay.localeCompare(aDay) || this.comparePriority(a, b) || (b.completed_at || 0) - (a.completed_at || 0)
+			},
 			getService() {
-				if (!this.taskService) this.taskService = uniCloud.importObject('task-service', { customUI: true })
+				if (!this.taskService) this.taskService = createTaskService()
 				return this.taskService
 			},
 			acceptTasks(tasks) {
@@ -150,7 +165,8 @@
 	@keyframes spin { to { transform:rotate(360deg); } }
 	.detail-error { display:flex; align-items:center; justify-content:space-between; padding:20rpx 22rpx; border-radius:18rpx; background:#fff1f2; color:#ca424a; font-size:21rpx; }
 	.detail-empty { display:flex; align-items:center; flex-direction:column; justify-content:center; min-height:580rpx; color:#8d8e9f; text-align:center; }
-	.empty-mark { display:flex; align-items:center; justify-content:center; width:88rpx; height:88rpx; margin-bottom:24rpx; border-radius:50%; background:#eee9fb; color:#7146df; font-size:48rpx; }
+	.empty-mark { display:flex; align-items:center; justify-content:center; width:88rpx; height:88rpx; margin-bottom:24rpx; border-radius:50%; background:#eee9fb; color:#7146df; }
+	.empty-check-glyph { box-sizing:border-box; width:16rpx; height:30rpx; margin-top:-7rpx; border-right:6rpx solid currentColor; border-bottom:6rpx solid currentColor; transform:rotate(45deg); }
 	.empty-title { margin-bottom:10rpx; color:#3a3b4a; font-size:29rpx; font-weight:650; } .empty-copy { font-size:21rpx; }
 	@media (min-width:700px) { .detail-shell { padding:35px 0; } .detail-content { min-height:calc(100vh - 70px); border-radius:30px; background:rgba(250,249,253,.72); box-shadow:0 24px 80px rgba(54,42,92,.12); } }
 </style>

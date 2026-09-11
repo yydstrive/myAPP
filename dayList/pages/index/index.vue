@@ -78,7 +78,7 @@
 								<text class="summary-caption">已逾期 {{ overdueTasks.length }} 项</text>
 							</view>
 						</view>
-						<view class="summary-card orange-summary">
+						<view class="summary-card orange-summary weekly-summary-card" role="button" aria-label="查看每周逾期历史" @tap.stop="openWeeklyHistory">
 							<view class="weekly-clock-icon">
 								<view class="weekly-clock-face">
 									<view class="weekly-clock-hour"></view><view class="weekly-clock-minute"></view><view class="weekly-clock-center"></view>
@@ -93,19 +93,19 @@
 					</view>
 
 					<view v-if="viewMode === 'list'" class="add-card">
-						<button class="date-picker-button" :class="{ selected: selectedDate }" aria-label="选择任务日期" @tap="openCalendar">
+						<button class="date-picker-button" :class="{ selected: selectedDate }" aria-label="选择任务日期" @tap.stop="openCalendar">
 							<view class="calendar-glyph"></view><text>{{ selectedDateLabel }}</text>
 						</button>
-					<input v-model="newTaskTitle" class="task-input" maxlength="120" placeholder=" 添加任务" confirm-type="done" @confirm="createTask" />
-						<button class="add-button" :class="{ disabled: !canCreateTask || loadingTasks }" :disabled="!canCreateTask || mutationBusy || loadingTasks" @tap="createTask"><text>+</text></button>
+						<input v-model="newTaskTitle" class="task-input" maxlength="120" placeholder=" 添加任务" confirm-type="done" @confirm="createTask" />
+						<button class="add-button" :class="{ disabled: !canCreateTask || loadingTasks }" :disabled="!canCreateTask || mutationBusy || loadingTasks" aria-label="添加任务" @tap="createTask"><view class="add-plus-glyph"></view></button>
 					</view>
 
 					<view v-if="calendarOpen" class="calendar-mask" @tap="closeCalendar">
 						<view class="calendar-panel" @tap.stop>
 							<view class="calendar-header">
-								<button class="month-button" aria-label="上个月" @tap="changeCalendarMonth(-1)">‹</button>
+								<button class="month-button" aria-label="上个月" @tap="changeCalendarMonth(-1)"><view class="month-chevron left"></view></button>
 								<text class="calendar-title">{{ calendarTitle }}</text>
-								<button class="month-button" aria-label="下个月" @tap="changeCalendarMonth(1)">›</button>
+								<button class="month-button" aria-label="下个月" @tap="changeCalendarMonth(1)"><view class="month-chevron right"></view></button>
 							</view>
 							<view class="calendar-weekdays">
 								<text v-for="weekday in calendarWeekdays" :key="weekday">{{ weekday }}</text>
@@ -115,10 +115,46 @@
 									<text>{{ day.day }}</text>
 								</button>
 							</view>
+							<view class="priority-card">
+								<text class="priority-title">任务优先级</text>
+								<view class="priority-options">
+									<button v-for="option in priorityOptions" :key="option.value" class="priority-option" :class="[`priority-${option.value}`, { selected: calendarPriorityDraft === option.value }]" :aria-label="`${option.label}优先级`" @tap="togglePriorityDraft(option.value)">{{ option.label }}</button>
+								</view>
+							</view>
 							<view class="calendar-footer">
 								<button class="calendar-cancel" @tap="closeCalendar">取消</button>
 								<button class="calendar-today" @tap="selectCalendarDate(currentDate)">选择今天</button>
 							</view>
+						</view>
+					</view>
+
+					<view v-if="weeklyHistoryOpen" class="weekly-history-mask" @tap="closeWeeklyHistory">
+							<view class="weekly-history-panel" @tap.stop>
+								<view class="weekly-history-header">
+									<view class="weekly-history-heading"><view class="history-clock-glyph"><view></view></view><text>每周逾期值概览</text></view>
+								</view>
+								<view class="current-week-card">
+									<view class="current-week-copy"><text>本周逾期值</text><view><text class="current-week-score">{{ weeklyOverdueScore }}</text><text class="current-week-unit"> 天</text></view><text class="current-week-compare">{{ currentWeekComparisonText }}</text></view>
+									<view class="comparison-pill" :class="`comparison-${currentWeekComparison.tone}`"><text>{{ currentWeekComparison.symbol }}</text><text>{{ currentWeekComparison.rateText }}</text></view>
+								</view>
+								<view v-if="weeklyTrendItems.length" class="weekly-trend">
+									<view v-for="item in weeklyTrendItems" :key="item.weekStart" class="trend-item">
+										<text class="trend-value">{{ item.score }}</text>
+										<view class="trend-track"><view class="trend-bar" :class="`trend-${item.tone}`" :style="{ height: `${item.height}rpx` }"></view></view>
+										<text class="trend-label">{{ item.label }}</text>
+									</view>
+								</view>
+								<view class="history-divider"></view>
+								<text class="history-title">历史记录</text>
+								<scroll-view v-if="weeklyHistoryRows.length" scroll-y class="history-list" :show-scrollbar="false">
+									<view v-for="row in weeklyHistoryRows" :key="row.weekStart" class="history-row">
+										<view class="history-period"><text class="history-week-label">{{ row.label }}</text><text class="history-date-range">{{ row.range }}</text></view>
+										<text class="history-score">{{ row.score }} 天</text>
+										<text class="history-change" :class="`change-${row.comparison.tone}`">{{ row.comparison.fullText }}</text>
+									</view>
+								</scroll-view>
+								<view v-else class="history-empty">暂无已结束周记录</view>
+								<button class="weekly-history-confirm" @tap="closeWeeklyHistory">关闭</button>
 						</view>
 					</view>
 
@@ -185,12 +221,13 @@
 <script>
 	import TaskCard from '../../components/TaskCard.vue'
 	import TaskListRows from '../../components/TaskListRows.vue'
+	import { createTaskService } from '../../services/task-data-service.js'
 
 	const SECRET_STORAGE_KEY = 'daylist-sync-secret-v1'
 	const CARD_ROW_HEIGHTS_STORAGE_KEY = 'daylist-card-row-heights-v1'
+	const WEEKLY_HISTORY_STORAGE_KEY = 'daylist-weekly-metric-history-v1'
 	const DEFAULT_CARD_ROW_HEIGHT = 420
 	const MIN_CARD_ROW_HEIGHT = 260
-	const MAX_CARD_ROW_HEIGHT = 760
 	const pad = (value) => String(value).padStart(2, '0')
 	const localDateString = (date = new Date()) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 	const parseDate = (value) => {
@@ -198,15 +235,28 @@
 		return new Date(year, month - 1, day, 12, 0, 0)
 	}
 	const daysBetween = (earlier, later) => Math.max(0, Math.round((parseDate(later) - parseDate(earlier)) / 86400000))
+	const addDateDays = (value, amount) => {
+		const date = parseDate(value)
+		date.setDate(date.getDate() + amount)
+		return localDateString(date)
+	}
+	const metricWeekStart = (dateInput = new Date()) => {
+		const date = new Date(dateInput)
+		const mondayOffset = (date.getDay() + 6) % 7
+		const start = new Date(date.getFullYear(), date.getMonth(), date.getDate() - mondayOffset, 0, 1, 0, 0)
+		if (date < start) start.setDate(start.getDate() - 7)
+		return localDateString(start)
+	}
 
 	export default {
 		components: { TaskCard, TaskListRows },
 		data() {
 			return {
 				accessState: 'loading', accessBusy: false, accessError: '', secretInput: '', secretConfirm: '', secret: '', secretGateEnabled: true, taskService: null,
-				tasks: [], loadingTasks: false, mutationBusy: false, syncError: '', viewMode: 'list', searchQuery: '', newTaskTitle: '', selectedDate: '',
-				currentDate: localDateString(), calendarOpen: false, calendarCursor: localDateString(), calendarWeekdays: ['一', '二', '三', '四', '五', '六', '日'],
-				metricNow: Date.now(), metricTimerId: null,
+				tasks: [], loadingTasks: false, mutationBusy: false, syncError: '', viewMode: 'list', searchQuery: '', newTaskTitle: '', selectedDate: '', selectedPriority: 'medium',
+				currentDate: localDateString(), calendarOpen: false, calendarCursor: localDateString(), calendarPriorityDraft: 'medium', calendarWeekdays: ['一', '二', '三', '四', '五', '六', '日'],
+				priorityOptions: [{ value: 'low', label: '低' }, { value: 'high', label: '高' }],
+				metricNow: Date.now(), metricTimerId: null, metricWeekKey: '', weeklyHistoryOpen: false, weeklyHistoryRecords: [],
 				layoutEditing: false, cardRowHeights: { top: DEFAULT_CARD_ROW_HEIGHT, bottom: DEFAULT_CARD_ROW_HEIGHT },
 				resizingRow: '', resizeStartY: 0, resizeStartHeight: DEFAULT_CARD_ROW_HEIGHT, resizeViewportWidth: 375, lastTouchResizeAt: 0
 			}
@@ -232,10 +282,19 @@
 			canCreateTask() { return this.newTaskTitle.trim().length > 0 },
 			activeTasks() { return this.tasks.filter((task) => !task.deleted) },
 			trashTasks() { return this.tasks.filter((task) => task.deleted).sort((a, b) => (b.deleted_at || 0) - (a.deleted_at || 0)) },
-			filteredActiveTasks() { const keyword = this.searchQuery.trim().toLocaleLowerCase(); return keyword ? this.activeTasks.filter((task) => task.title.toLocaleLowerCase().includes(keyword)) : this.activeTasks },
-			overdueTasks() { return this.activeTasks.filter((task) => !task.completed && task.task_date < this.currentDate).sort(this.sortByDateThenCreated) },
+			filteredActiveTasks() {
+				const keyword = this.searchQuery.trim().toLocaleLowerCase()
+				const tasks = keyword ? this.activeTasks.filter((task) => task.title.toLocaleLowerCase().includes(keyword)) : this.activeTasks
+				return tasks.slice().sort(this.sortByDateThenPriorityThenCreated)
+			},
+			overdueTasks() { return this.activeTasks.filter((task) => !task.completed && task.task_date < this.currentDate).sort(this.sortByDateThenPriorityThenCreated) },
 			todayTasks() { return this.activeTasks.filter((task) => task.task_date === this.currentDate) },
-			todayCompletedCount() { return this.todayTasks.filter((task) => task.completed).length },
+			todayCompletedCount() {
+				return this.activeTasks.filter((task) => {
+					if (!task.completed || !task.completed_at) return false
+					return localDateString(new Date(task.completed_at)) === this.currentDate
+				}).length
+			},
 			weeklyMetric() {
 				const now = new Date(this.metricNow)
 				const mondayOffset = (now.getDay() + 6) % 7
@@ -271,12 +330,55 @@
 			},
 			weeklyOverdueScore() { return this.weeklyMetric.score },
 			weeklyReward() { return this.weeklyMetric.reward },
-			displayOverdueTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date < this.currentDate).sort(this.sortByDateThenCreated) },
-			displayTodayTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date === this.currentDate).sort((a, b) => (b.created_at || 0) - (a.created_at || 0)) },
-			displayCompletedTasks() { return this.filteredActiveTasks.filter((task) => task.completed).sort((a, b) => (b.completed_at || 0) - (a.completed_at || 0)) },
-			displayFutureTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date > this.currentDate).sort(this.sortByDateThenCreated) }
+			currentMetricWeekStart() { return metricWeekStart(new Date(this.metricNow)) },
+			completedWeeklyRecords() { return this.weeklyHistoryRecords.slice().sort((a, b) => b.weekStart.localeCompare(a.weekStart)) },
+			currentWeekComparison() {
+				const previousStart = addDateDays(this.currentMetricWeekStart, -7)
+				const previous = this.completedWeeklyRecords.find((record) => record.weekStart === previousStart)
+				return this.describeComparison(this.weeklyOverdueScore, previous ? previous.score : null)
+			},
+			currentWeekComparisonText() {
+				const comparison = this.currentWeekComparison
+				if (!comparison.hasPrevious) return '暂无上周完整记录'
+				if (comparison.tone === 'neutral') return '与上周持平'
+				return `较上周${comparison.tone === 'decrease' ? '减少' : '增加'} ${comparison.deltaText} 天`
+			},
+			weeklyHistoryRows() {
+				const previousStart = addDateDays(this.currentMetricWeekStart, -7)
+				return this.completedWeeklyRecords.map((record) => {
+					const olderStart = addDateDays(record.weekStart, -7)
+					const older = this.weeklyHistoryRecords.find((item) => item.weekStart === olderStart)
+					return {
+						...record,
+						label: record.weekStart === previousStart ? '上周' : '',
+						range: this.formatWeekRange(record.weekStart),
+						comparison: this.describeComparison(record.score, older ? older.score : null)
+					}
+				})
+			},
+			weeklyTrendItems() {
+				const current = {
+					weekStart: this.currentMetricWeekStart,
+					label: '本周',
+					score: this.weeklyOverdueScore,
+					tone: this.currentWeekComparison.tone
+				}
+				const history = this.weeklyHistoryRows.slice(0, 3).map((row) => ({
+					weekStart: row.weekStart,
+					label: row.label || this.formatShortWeekRange(row.weekStart),
+					score: row.score,
+					tone: row.comparison.tone
+				}))
+				const items = [current, ...history]
+				const maximum = Math.max(1, ...items.map((item) => Number(item.score) || 0))
+				return items.map((item) => ({ ...item, height: Math.max(15, Math.round((Number(item.score) || 0) / maximum * 78)) }))
+			},
+			displayOverdueTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date < this.currentDate).sort(this.sortByDateThenPriorityThenCreated) },
+			displayTodayTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date === this.currentDate).sort(this.sortByPriorityThenNewest) },
+			displayCompletedTasks() { return this.filteredActiveTasks.filter((task) => task.completed).sort(this.sortCompletedTasks) },
+			displayFutureTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date > this.currentDate).sort(this.sortByDateThenPriorityThenCreated) }
 		},
-		onLoad() { this.restoreCardRowHeights(); this.startMetricClock(); this.bootstrap() },
+		onLoad() { this.restoreCardRowHeights(); this.restoreWeeklyMetricHistory(); this.startMetricClock(); this.bootstrap() },
 		onShow() {
 			const today = localDateString()
 			if (today !== this.currentDate) this.currentDate = today
@@ -284,15 +386,88 @@
 		},
 		onUnload() { this.endRowResize(); this.stopMetricClock() },
 		beforeUnmount() { this.endRowResize(); this.stopMetricClock() },
-		onPullDownRefresh() {
-			if (this.accessState !== 'ready') return uni.stopPullDownRefresh()
-			this.loadTasks().finally(() => uni.stopPullDownRefresh())
-		},
 		methods: {
+			formatMetricNumber(value) {
+				const number = Number(value) || 0
+				return Number.isInteger(number) ? String(number) : number.toFixed(1).replace(/\.0$/, '')
+			},
+			formatWeekRange(weekStart) {
+				const start = parseDate(weekStart)
+				const end = parseDate(addDateDays(weekStart, 6))
+				return `${start.getMonth() + 1}/${start.getDate()}–${end.getMonth() + 1}/${end.getDate()}`
+			},
+			formatShortWeekRange(weekStart) { return this.formatWeekRange(weekStart) },
+			describeComparison(currentInput, previousInput) {
+				const current = Number(currentInput) || 0
+				if (previousInput === null || previousInput === undefined) {
+					return { hasPrevious: false, tone: 'neutral', symbol: '—', deltaText: '0', rateText: '暂无对比', fullText: '—' }
+				}
+				const previous = Number(previousInput) || 0
+				const delta = current - previous
+				if (delta === 0) return { hasPrevious: true, tone: 'neutral', symbol: '—', deltaText: '0', rateText: '持平', fullText: '— 持平' }
+				const tone = delta < 0 ? 'decrease' : 'increase'
+				const symbol = delta < 0 ? '↓' : '↑'
+				const deltaText = this.formatMetricNumber(Math.abs(delta))
+				const action = delta < 0 ? '减少' : '增加'
+				if (previous === 0) return { hasPrevious: true, tone, symbol, deltaText, rateText: `${action} · 新增`, fullText: `${symbol} ${deltaText} 天 · 新增` }
+				const rate = Math.abs(delta) / previous * 100
+				const rateValue = Number.isInteger(rate) ? String(rate) : rate.toFixed(1).replace(/\.0$/, '')
+				return { hasPrevious: true, tone, symbol, deltaText, rateText: `${action} ${rateValue}%`, fullText: `${symbol} ${deltaText} 天 · ${action} ${rateValue}%` }
+			},
+			restoreWeeklyMetricHistory() {
+				const saved = uni.getStorageSync(WEEKLY_HISTORY_STORAGE_KEY)
+				this.weeklyHistoryRecords = Array.isArray(saved)
+					? saved.filter((record) => record && /^\d{4}-\d{2}-\d{2}$/.test(record.weekStart) && Number.isFinite(Number(record.score)))
+					: []
+			},
+			calculateCompletedWeekMetric(weekStart) {
+				const weekEnd = addDateDays(weekStart, 6)
+				let penalty = 0
+				let reward = 0
+				this.activeTasks.forEach((task) => {
+					const createdDate = task.created_at ? localDateString(new Date(task.created_at)) : task.task_date
+					if (createdDate > weekEnd) return
+					const completedDate = task.completed_at ? localDateString(new Date(task.completed_at)) : ''
+					if (completedDate && completedDate < weekStart) return
+					if (completedDate && completedDate <= weekEnd) {
+						if (completedDate < task.task_date) reward += 1
+						else if (completedDate === task.task_date) reward += 0.5
+						else penalty += task.task_date < weekStart ? daysBetween(weekStart, completedDate) + 1 : daysBetween(task.task_date, completedDate)
+						return
+					}
+					if (task.task_date > weekEnd) return
+					penalty += task.task_date < weekStart ? 7 : daysBetween(task.task_date, weekEnd)
+				})
+				return { penalty, reward, score: Math.max(0, penalty - reward) }
+			},
+			syncWeeklyMetricHistory() {
+				const currentStart = metricWeekStart(new Date(this.metricNow))
+				const lastCompletedStart = addDateDays(currentStart, -7)
+				const recordsByWeek = new Map(this.weeklyHistoryRecords.map((record) => [record.weekStart, record]))
+				let earliest = this.weeklyHistoryRecords.reduce((value, record) => !value || record.weekStart < value ? record.weekStart : value, '')
+				this.activeTasks.forEach((task) => {
+					const created = task.created_at ? new Date(task.created_at) : parseDate(task.task_date)
+					const candidate = metricWeekStart(created)
+					if (!earliest || candidate < earliest) earliest = candidate
+				})
+				if (!earliest || earliest > lastCompletedStart) return
+				let cursor = earliest
+				let guard = 0
+				while (cursor <= lastCompletedStart && guard < 260) {
+					if (!recordsByWeek.has(cursor)) {
+						const metric = this.calculateCompletedWeekMetric(cursor)
+						recordsByWeek.set(cursor, { weekStart: cursor, ...metric, capturedAt: Date.now() })
+					}
+					cursor = addDateDays(cursor, 7)
+					guard += 1
+				}
+				this.weeklyHistoryRecords = Array.from(recordsByWeek.values()).sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+				uni.setStorageSync(WEEKLY_HISTORY_STORAGE_KEY, this.weeklyHistoryRecords)
+			},
 			normalizeCardRowHeight(value) {
 				const height = Number(value)
 				if (!Number.isFinite(height)) return DEFAULT_CARD_ROW_HEIGHT
-				return Math.min(MAX_CARD_ROW_HEIGHT, Math.max(MIN_CARD_ROW_HEIGHT, Math.round(height)))
+				return Math.max(MIN_CARD_ROW_HEIGHT, Math.round(height))
 			},
 			restoreCardRowHeights() {
 				const saved = uni.getStorageSync(CARD_ROW_HEIGHTS_STORAGE_KEY)
@@ -354,10 +529,16 @@
 			startMetricClock() {
 				this.stopMetricClock()
 				this.metricNow = Date.now()
+				this.metricWeekKey = metricWeekStart(new Date(this.metricNow))
 				this.metricTimerId = setInterval(() => {
 					this.metricNow = Date.now()
 					const today = localDateString()
 					if (today !== this.currentDate) this.currentDate = today
+					const weekKey = metricWeekStart(new Date(this.metricNow))
+					if (weekKey !== this.metricWeekKey) {
+						this.metricWeekKey = weekKey
+						this.syncWeeklyMetricHistory()
+					}
 				}, 15000)
 			},
 			stopMetricClock() {
@@ -365,8 +546,22 @@
 				clearInterval(this.metricTimerId)
 				this.metricTimerId = null
 			},
-			sortByDateThenCreated(a, b) { return a.task_date.localeCompare(b.task_date) || (a.created_at || 0) - (b.created_at || 0) },
-			getService() { if (!this.taskService) this.taskService = uniCloud.importObject('task-service', { customUI: true }); return this.taskService },
+			priorityRank(task) {
+				if (task && task.priority === 'high') return 0
+				if (task && task.priority === 'low') return 2
+				return 1
+			},
+			comparePriority(a, b) { return this.priorityRank(a) - this.priorityRank(b) },
+			sortByDateThenPriorityThenCreated(a, b) {
+				return a.task_date.localeCompare(b.task_date) || this.comparePriority(a, b) || (a.created_at || 0) - (b.created_at || 0)
+			},
+			sortByPriorityThenNewest(a, b) { return this.comparePriority(a, b) || (b.created_at || 0) - (a.created_at || 0) },
+			sortCompletedTasks(a, b) {
+				const aDay = a.completed_at ? localDateString(new Date(a.completed_at)) : ''
+				const bDay = b.completed_at ? localDateString(new Date(b.completed_at)) : ''
+				return bDay.localeCompare(aDay) || this.comparePriority(a, b) || (b.completed_at || 0) - (a.completed_at || 0)
+			},
+			getService() { if (!this.taskService) this.taskService = createTaskService(); return this.taskService },
 			async bootstrap() {
 				this.accessState = 'loading'; this.accessError = ''
 				const cachedSecret = uni.getStorageSync(SECRET_STORAGE_KEY)
@@ -432,37 +627,49 @@
 			acceptTasks(tasks) {
 				this.tasks = Array.isArray(tasks) ? tasks : []
 				uni.setStorageSync('daylist-task-cache-v1', this.tasks)
+				this.syncWeeklyMetricHistory()
 			},
 			isSecretError(error) {
 				const message = error && (error.errMsg || error.message || error.errCode) || ''
 				return String(message).includes('INVALID_SECRET') || String(message).includes('ACCESS_LOCKED') || String(message).includes('同步口令')
 			},
 			openCalendar() {
+				this.weeklyHistoryOpen = false
 				const date = parseDate(this.selectedDate || this.currentDate)
 				this.calendarCursor = localDateString(new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0))
+				this.calendarPriorityDraft = this.selectedPriority
 				this.calendarOpen = true
+			},
+			openWeeklyHistory() {
+				this.calendarOpen = false
+				this.syncWeeklyMetricHistory()
+				this.weeklyHistoryOpen = true
+			},
+			closeWeeklyHistory() { this.weeklyHistoryOpen = false },
+			togglePriorityDraft(priority) {
+				this.calendarPriorityDraft = this.calendarPriorityDraft === priority ? 'medium' : priority
 			},
 			closeCalendar() { this.calendarOpen = false },
 			changeCalendarMonth(offset) {
 				const date = parseDate(this.calendarCursor)
 				this.calendarCursor = localDateString(new Date(date.getFullYear(), date.getMonth() + offset, 1, 12, 0, 0))
 			},
-			selectCalendarDate(value) { this.selectedDate = value; this.calendarOpen = false },
+			selectCalendarDate(value) { this.selectedDate = value; this.selectedPriority = this.calendarPriorityDraft; this.calendarOpen = false },
 			sanitizeSecretInput(event) { this.secretInput = String(event.detail.value || '').replace(/\D/g, '').slice(0, 32) },
 			sanitizeSecretConfirm(event) { this.secretConfirm = String(event.detail.value || '').replace(/\D/g, '').slice(0, 32) },
 			async createTask() {
 				const title = this.newTaskTitle.trim(); if (!title || this.mutationBusy || this.loadingTasks) return
 				this.mutationBusy = true
 				try {
-					await this.getService().createTask({ secret: this.secret, title, taskDate: this.selectedDate || this.currentDate })
-					this.newTaskTitle = ''; this.selectedDate = ''; await this.loadTasks(); uni.showToast({ title: '已添加', icon: 'success' })
+					await this.getService().createTask({ secret: this.secret, title, taskDate: this.selectedDate || this.currentDate, priority: this.selectedPriority })
+					this.newTaskTitle = ''; this.selectedDate = ''; this.selectedPriority = 'medium'; await this.loadTasks()
 				} catch (error) { uni.showToast({ title: this.friendlyError(error, '添加失败'), icon: 'none' }) }
 				finally { this.mutationBusy = false }
 			},
 			async toggleTask(task) { await this.mutate('setCompleted', { id: task._id, completed: !task.completed }, '更新失败') },
 			async renameTask({ task, title }) { await this.mutate('renameTask', { id: task._id, title }, '修改失败') },
 			async moveToTrash(task) { const ok = await this.mutate('moveToTrash', { id: task._id }, '删除失败'); if (ok) uni.showToast({ title: '已移入回收站', icon: 'none' }) },
-			async restoreTask(task) { const ok = await this.mutate('restoreTask', { id: task._id }, '恢复失败'); if (ok) uni.showToast({ title: '已恢复', icon: 'success' }) },
+			async restoreTask(task) { const ok = await this.mutate('restoreTask', { id: task._id }, '恢复失败'); if (ok) uni.showToast({ title: '已恢复', icon: 'none' }) },
 			confirmPermanentDelete(task) {
 				uni.showModal({ title: '永久删除任务？', content: `“${task.title}”删除后无法恢复。`, confirmText: '永久删除', confirmColor: '#e94b55', success: ({ confirm }) => { if (confirm) this.permanentDelete(task) } })
 			},
@@ -517,6 +724,8 @@
 	.summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18rpx; margin-bottom:22rpx; }
 	.summary-card { display:flex; align-items:center; min-height:164rpx; padding:24rpx 20rpx; border:1rpx solid rgba(111,70,232,.25); border-radius:27rpx; background:linear-gradient(135deg,rgba(250,248,255,.95),rgba(239,232,255,.85)); box-shadow:0 10rpx 28rpx rgba(96,68,161,.06); }
 	.orange-summary { border-color:rgba(244,123,36,.25); background:linear-gradient(135deg,rgba(255,252,247,.98),rgba(255,239,224,.85)); }
+	.weekly-summary-card { cursor:pointer; transition:transform .16s ease,box-shadow .16s ease; }
+	.weekly-summary-card:active { transform:scale(.985); box-shadow:0 6rpx 18rpx rgba(96,68,161,.08); }
 	.summary-ring { position:relative; flex:0 0 auto; width:76rpx; height:76rpx; margin-right:17rpx; border:11rpx solid rgba(111,70,232,.17); border-top-color:#6f46e8; border-right-color:#6f46e8; border-radius:50%; }
 	.mini-clipboard { position:absolute; left:17rpx; top:16rpx; width:23rpx; height:28rpx; border-radius:5rpx; background:#6f46e8; }
 	.mini-clipboard::before { content:''; position:absolute; left:6rpx; top:-5rpx; width:11rpx; height:8rpx; border-radius:5rpx; background:#6f46e8; }
@@ -537,13 +746,20 @@
 	.calendar-glyph::after { content:''; position:absolute; left:5rpx; top:-8rpx; width:4rpx; height:8rpx; border-radius:3rpx; background:currentColor; box-shadow:13rpx 0 0 currentColor; }
 	.task-input { min-width:0; flex:1; height:72rpx; padding:0 12rpx; color:#252636; font-size:29rpx; }
 	.add-button { display:flex; align-items:center; justify-content:center; width:76rpx; height:76rpx; margin:0; padding:0; border-radius:50%; background:linear-gradient(145deg,#7445ed,#5529cb); box-shadow:0 10rpx 23rpx rgba(83,40,196,.32); color:#fff !important; line-height:1; }
-	.add-button text { display:block; color:#fff !important; font-size:58rpx; font-weight:260; line-height:66rpx; transform:translateY(-2rpx); }
+	.add-plus-glyph { position:relative; width:34rpx; height:34rpx; pointer-events:none; }
+	.add-plus-glyph::before,.add-plus-glyph::after { content:''; position:absolute; left:50%; top:50%; border-radius:5rpx; background:#fff; transform:translate(-50%,-50%); }
+	.add-plus-glyph::before { width:34rpx; height:5rpx; }
+	.add-plus-glyph::after { width:5rpx; height:34rpx; }
 	.add-button.disabled { opacity:.62; box-shadow:none; }
 	.calendar-mask { position:fixed; z-index:100; inset:0; display:flex; align-items:center; justify-content:center; padding:30rpx; background:rgba(28,24,43,.35); backdrop-filter:blur(7rpx); }
 	.calendar-panel { width:100%; max-width:650rpx; padding:27rpx 24rpx 24rpx; border:1rpx solid rgba(111,70,232,.16); border-radius:34rpx; background:#fff; box-shadow:0 30rpx 90rpx rgba(39,27,76,.22); }
 	.calendar-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20rpx; }
 	.calendar-title { color:#252633; font-size:31rpx; font-weight:720; }
-	.month-button { display:flex; align-items:center; justify-content:center; width:68rpx; height:68rpx; margin:0; padding:0 0 8rpx; border-radius:50%; background:#f5f1ff; color:#6f46e8; font-size:53rpx; font-weight:300; line-height:58rpx; }
+	.month-button { display:flex; align-items:center; justify-content:center; width:68rpx; height:68rpx; margin:0; padding:0; border:0 !important; border-radius:50%; background:#f5f1ff !important; box-shadow:none !important; color:#6f46e8; line-height:1; }
+	.month-button::after { border:0 !important; }
+	.month-chevron { box-sizing:border-box; width:17rpx; height:17rpx; border-top:5rpx solid currentColor; border-right:5rpx solid currentColor; }
+	.month-chevron.left { transform:translateX(3rpx) rotate(-135deg); }
+	.month-chevron.right { transform:translateX(-3rpx) rotate(45deg); }
 	.calendar-weekdays,.calendar-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
 	.calendar-weekdays { margin-bottom:7rpx; } .calendar-weekdays text { color:#9999a8; font-size:21rpx; line-height:47rpx; text-align:center; }
 	.calendar-day { display:flex; position:relative; align-items:center; justify-content:center; width:62rpx; height:62rpx; margin:3rpx auto; padding:0; border:0 !important; border-radius:50%; outline:none; background:transparent !important; box-shadow:none; color:#2d2e3a; font-size:24rpx; line-height:62rpx; }
@@ -551,10 +767,59 @@
 	.calendar-day.today::after { content:''; position:absolute; left:50%; bottom:5rpx; width:6rpx; height:6rpx; border-radius:50%; background:#7a4ced; transform:translateX(-50%); }
 	.calendar-day.selected { background:linear-gradient(145deg,#8356f2,#6338da) !important; box-shadow:0 7rpx 18rpx rgba(99,56,218,.24); color:#fff; font-weight:700; }
 	.calendar-day.selected::after { display:none; }
+	.priority-card { display:flex; align-items:center; justify-content:space-between; gap:18rpx; margin-top:18rpx; padding:16rpx 17rpx; border-radius:19rpx; background:#faf8ff; box-shadow:inset 0 0 0 1rpx rgba(111,70,232,.1); }
+	.priority-title { color:#353543; font-size:22rpx; font-weight:650; }
+	.priority-options { display:flex; flex:0 0 auto; gap:8rpx; }
+	.priority-option { display:flex; align-items:center; justify-content:center; width:58rpx; height:48rpx; margin:0; padding:0; border:2rpx solid transparent !important; border-radius:12rpx; background:#f0eef5 !important; box-shadow:none !important; color:#777887; font-size:24rpx; line-height:1; }
+	.priority-option::after { border:0 !important; }
+	.priority-option.priority-low.selected { border-color:#f2bc7e !important; background:#fff0dd !important; color:#df7b25; font-weight:700; }
+	.priority-option.priority-high.selected { border-color:#f2a1a7 !important; background:#ffe7e9 !important; color:#df3541; font-weight:700; }
 	.calendar-footer { display:flex; justify-content:flex-end; gap:15rpx; margin-top:21rpx; padding-top:20rpx; border-top:1rpx solid #efedf5; }
 	.calendar-cancel,.calendar-today { height:66rpx; margin:0; padding:0 25rpx; border:0 !important; border-radius:18rpx; outline:none; box-shadow:none !important; font-size:23rpx; line-height:66rpx; }
 	.calendar-cancel::after,.calendar-today::after { border:0 !important; }
 	.calendar-cancel { background:#f4f3f7; color:#777889; } .calendar-today { background:#efe9ff; color:#6f46e8; font-weight:650; }
+	.weekly-history-mask { position:fixed; z-index:110; inset:0; display:flex; align-items:center; justify-content:center; padding:30rpx; background:rgba(28,24,43,.38); backdrop-filter:blur(7rpx); }
+	.weekly-history-panel { box-sizing:border-box; display:flex; width:100%; max-width:650rpx; max-height:calc(100vh - 60rpx); padding:27rpx 25rpx 24rpx; overflow:hidden; flex-direction:column; border:1rpx solid rgba(111,70,232,.13); border-radius:34rpx; background:#fff; box-shadow:0 30rpx 90rpx rgba(39,27,76,.24); }
+	.weekly-history-header { display:flex; flex:0 0 auto; align-items:center; justify-content:center; margin-bottom:19rpx; }
+	.weekly-history-heading { display:flex; align-items:center; gap:14rpx; color:#252633; font-size:30rpx; font-weight:720; }
+	.history-clock-glyph { display:flex; position:relative; align-items:center; justify-content:center; width:58rpx; height:58rpx; border-radius:50%; background:#ffead9; color:#f36c1e; }
+	.history-clock-glyph::before { content:''; box-sizing:border-box; width:31rpx; height:31rpx; border:4rpx solid currentColor; border-radius:50%; }
+	.history-clock-glyph::after { content:''; position:absolute; left:28rpx; top:17rpx; width:4rpx; height:14rpx; border-radius:4rpx; background:currentColor; transform-origin:50% 12rpx; transform:rotate(0deg); }
+	.history-clock-glyph view { position:absolute; left:28rpx; top:28rpx; width:13rpx; height:4rpx; border-radius:4rpx; background:currentColor; transform:rotate(35deg); transform-origin:0 50%; }
+	.current-week-card { display:flex; flex:0 0 auto; align-items:center; justify-content:space-between; gap:16rpx; padding:21rpx 22rpx; border-radius:22rpx; background:linear-gradient(135deg,#fff8f1,#fff0e5); }
+	.current-week-copy { display:flex; min-width:0; flex-direction:column; color:#cc4d13; font-size:22rpx; font-weight:650; }
+	.current-week-score { font-size:50rpx; font-weight:750; line-height:1.15; }
+	.current-week-unit { color:#363744; font-size:24rpx; font-weight:500; }
+	.current-week-compare { margin-top:4rpx; color:#747587; font-size:19rpx; font-weight:400; }
+	.comparison-pill { display:flex; flex:0 0 auto; align-items:center; gap:7rpx; padding:10rpx 14rpx; border-radius:24rpx; font-size:20rpx; font-weight:680; white-space:nowrap; }
+	.comparison-pill>text:first-child { font-size:28rpx; line-height:1; }
+	.comparison-decrease { background:#ddf7e5; color:#159541; }
+	.comparison-increase { background:#ffe3e5; color:#dc3541; }
+	.comparison-neutral { background:#efeff3; color:#777887; }
+	.weekly-trend { display:grid; flex:0 0 auto; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10rpx; min-height:157rpx; margin-top:17rpx; padding:0 4rpx; }
+	.trend-item { display:flex; min-width:0; align-items:center; justify-content:flex-end; flex-direction:column; }
+	.trend-value { margin-bottom:4rpx; color:#343543; font-size:18rpx; }
+	.trend-track { display:flex; height:78rpx; align-items:flex-end; justify-content:center; }
+	.trend-bar { width:48rpx; min-height:15rpx; border-radius:9rpx 9rpx 5rpx 5rpx; background:#b7b2c5; }
+	.trend-decrease { background:linear-gradient(180deg,#64d580,#42ba65); }
+	.trend-increase { background:linear-gradient(180deg,#ff746b,#e94b55); }
+	.trend-neutral { background:linear-gradient(180deg,#c8c5d1,#aaa6b7); }
+	.trend-label { width:100%; margin-top:7rpx; overflow:hidden; color:#68697b; font-size:16rpx; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+	.history-divider { flex:0 0 auto; height:1rpx; margin:16rpx 0 17rpx; background:#efedf4; }
+	.history-title { flex:0 0 auto; margin-bottom:12rpx; color:#292a38; font-size:26rpx; font-weight:720; }
+	.history-list { width:100%; max-height:315rpx; min-height:0; flex:1 1 auto; overflow-y:auto; border:1rpx solid rgba(91,76,133,.1); border-radius:18rpx; }
+	.history-row { display:grid; min-height:72rpx; align-items:center; grid-template-columns:minmax(0,1.25fr) 67rpx minmax(0,1.4fr); column-gap:9rpx; padding:12rpx 14rpx; border-bottom:1rpx solid #efedf4; }
+	.history-row:first-child { background:#faf8ff; }
+	.history-row:last-child { border-bottom:0; }
+	.history-period { display:flex; min-width:0; flex-direction:column; }
+	.history-week-label { color:#30313f; font-size:20rpx; font-weight:680; }
+	.history-date-range { color:#77788a; font-size:16rpx; white-space:nowrap; }
+	.history-score { color:#262733; font-size:20rpx; font-weight:680; white-space:nowrap; }
+	.history-change { overflow:hidden; font-size:16rpx; font-weight:650; text-align:right; text-overflow:ellipsis; white-space:nowrap; }
+	.change-decrease { color:#159541; } .change-increase { color:#dc3541; } .change-neutral { color:#8b8c9a; }
+	.history-empty { display:flex; min-height:115rpx; flex:1 1 auto; align-items:center; justify-content:center; border-radius:18rpx; background:#faf9fc; color:#9999a8; font-size:20rpx; }
+	.weekly-history-confirm { flex:0 0 auto; height:66rpx; margin:20rpx 0 0; padding:0; border:0 !important; border-radius:18rpx; background:#eee8ff !important; box-shadow:none !important; color:#6740d7; font-size:23rpx; font-weight:680; line-height:66rpx; }
+	.weekly-history-confirm::after { border:0 !important; }
 	.task-grid { display:flex; flex-direction:column; gap:18rpx; }
 	.task-grid.editing { gap:40rpx; padding-bottom:24rpx; }
 	.task-row-shell { position:relative; }

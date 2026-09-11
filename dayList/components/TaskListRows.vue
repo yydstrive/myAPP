@@ -6,7 +6,7 @@
 				<view class="list-row" :class="[{ revealed: openTaskId === task._id }, `tone-${taskTone(task)}`]" @touchstart="onTouchStart(task, $event)" @touchmove="onTouchMove($event)" @touchend="onTouchEnd(task, $event)">
 					<view class="list-checkbox-anchor">
 						<button class="list-checkbox" :class="{ checked: task.completed }" :aria-label="task.completed ? '标记为未完成' : '标记为已完成'" @tap.stop="$emit('toggle', task)">
-							<text v-if="task.completed">✓</text>
+							<view v-if="task.completed" class="list-check-glyph"></view>
 						</button>
 					</view>
 					<view class="list-copy" @tap.stop="startEdit(task)">
@@ -14,6 +14,7 @@
 						<view class="list-meta">
 							<text>{{ formatTaskDate(task.task_date, today) }}</text>
 							<text class="actual-date">实际完成日期：{{ formatCompletedDate(task.completed_at) }}</text>
+							<text v-if="taskPriority(task) !== 'medium'" class="list-priority-badge" :class="`priority-${taskPriority(task)}`">{{ taskPriority(task) === 'high' ? '高' : '低' }}</text>
 						</view>
 					</view>
 				</view>
@@ -49,6 +50,9 @@
 		methods: {
 			formatTaskDate,
 			formatCompletedDate,
+			taskPriority(task) {
+				return task && (task.priority === 'low' || task.priority === 'high') ? task.priority : 'medium'
+			},
 			taskTone(task) {
 				if (task.completed) return 'green'
 				if (task.task_date < this.today) return 'red'
@@ -120,12 +124,16 @@
 	.list-checkbox-anchor { display:flex; flex:0 0 42rpx; align-items:center; justify-content:center; width:42rpx; height:38rpx; margin-right:18rpx; }
 	.list-checkbox { display:flex; align-items:center; justify-content:center; width:38rpx; height:38rpx; margin:0; padding:0; border:4rpx solid currentColor !important; border-radius:9rpx; background:#fff !important; box-shadow:none !important; font-size:24rpx; line-height:1; }
 	.tone-red .list-checkbox { color:#ef4b54; } .tone-blue .list-checkbox { color:#3d70f2; } .tone-green .list-checkbox { color:#39ad54; } .tone-purple .list-checkbox { color:#6f46e8; }
-	.list-checkbox.checked { background:currentColor !important; } .list-checkbox.checked text { color:#fff; }
+	.list-checkbox.checked { background:currentColor !important; }
+	.list-check-glyph { box-sizing:border-box; width:10rpx; height:19rpx; margin-top:-4rpx; border-right:4rpx solid #fff; border-bottom:4rpx solid #fff; transform:rotate(45deg); pointer-events:none; }
 	.list-copy { display:flex; min-width:0; flex:1; flex-direction:column; }
 	.list-title { display:block; width:100%; color:#292a38; font-size:27rpx; line-height:38rpx; overflow-wrap:anywhere; word-break:break-word; }
 	.list-title.completed { color:#8e8f9e; text-decoration:line-through; }
 	.list-meta { display:flex; align-items:center; justify-content:flex-start; gap:44rpx; margin-top:8rpx; color:#8a8b9b; font-size:19rpx; line-height:29rpx; }
 	.actual-date { flex:0 0 auto; text-align:left; }
+	.list-priority-badge { flex:0 0 auto; margin-left:auto; padding:2rpx 8rpx; border:2rpx solid; border-radius:10rpx; font-size:16rpx; font-weight:650; line-height:23rpx; white-space:nowrap; }
+	.list-priority-badge.priority-low { border-color:#f2bc7e; background:#fff0dd; box-shadow:0 3rpx 0 rgba(207,123,37,.11); color:#df7b25; }
+	.list-priority-badge.priority-high { border-color:#f2a1a7; background:#ffe7e9; box-shadow:0 3rpx 0 rgba(207,53,65,.12); color:#df3541; }
 	.edit-mask { position:fixed; z-index:1000; inset:0; display:flex; align-items:center; justify-content:center; padding:36rpx; background:rgba(28,25,42,.38); }
 	.edit-dialog { width:100%; max-width:650rpx; padding:30rpx 28rpx 24rpx; border:1rpx solid rgba(111,70,232,.16); border-radius:28rpx; background:#fff; box-shadow:0 24rpx 70rpx rgba(35,27,65,.2); }
 	.edit-title { display:block; margin-bottom:22rpx; color:#292a38; font-size:29rpx; font-weight:700; }
