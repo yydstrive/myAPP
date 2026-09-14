@@ -1,6 +1,16 @@
 <script>
+	import { getStartupModule } from './shared/startup-module.js'
+
 	export default {
-		onLaunch() {}
+		globalData: { startupRedirectModule: '' },
+		onLaunch(options) {
+			const startupModule = getStartupModule()
+			if (startupModule === 'schedule') return
+
+			const launchPath = String(options && options.path || '').replace(/^\/+/, '')
+			if (launchPath && launchPath !== 'pages/schedule/index') return
+			this.globalData.startupRedirectModule = startupModule
+		}
 	}
 </script>
 

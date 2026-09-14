@@ -33,3 +33,13 @@ export function consumeCycleFeedback() {
 	setTimeout(() => showCycleFeedback(String(title)), 120)
 	return true
 }
+
+export function showCancelCheckinConfirm(dateText, onConfirm) {
+	uni.showModal({
+		title: '取消打卡？',
+		content: `${dateText}的打卡记录和备注都将删除。`,
+		confirmText: '取消打卡',
+		confirmColor: '#b06b75',
+		success: ({ confirm }) => { if (confirm && typeof onConfirm === 'function') onConfirm() }
+	})
+}

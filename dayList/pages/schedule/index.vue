@@ -1,6 +1,6 @@
 <template>
-	<view class="page-shell">
-		<view v-if="accessState !== 'ready'" class="access-page">
+	<view class="page-shell" :class="{ 'startup-redirecting': startupRedirecting }">
+		<view v-if="!startupRedirecting && accessState !== 'ready'" class="access-page">
 			<view class="access-brand">
 				<view class="brand-mark"><view class="brand-check"></view></view>
 				<text class="brand-title">日程清单</text>
@@ -36,7 +36,7 @@
 			</view>
 		</view>
 
-		<template v-else>
+		<template v-else-if="!startupRedirecting">
 			<view class="page-content">
 				<view v-if="viewMode === 'list'" class="topbar">
 					<view class="date-heading">
@@ -215,7 +215,7 @@
 				</view>
 			</view>
 		</template>
-		<app-bottom-nav active="schedule" />
+		<app-bottom-nav v-if="!startupRedirecting" active="schedule" />
 	</view>
 </template>
 
@@ -225,6 +225,7 @@
 	import AppBottomNav from '../../shared/components/AppBottomNav.vue'
 	import { createTaskService } from '../../modules/schedule/services/task-data-service.js'
 	import { showFeedback } from '../../shared/feedback.js'
+	import { startupModuleUrl } from '../../shared/startup-module.js'
 
 	const SECRET_STORAGE_KEY = 'daylist-sync-secret-v1'
 	const CARD_ROW_HEIGHTS_STORAGE_KEY = 'daylist-card-row-heights-v1'
@@ -254,8 +255,10 @@
 	export default {
 		components: { TaskCard, TaskListRows, AppBottomNav },
 		data() {
+			const app = typeof getApp === 'function' ? getApp() : null
+			const startupModule = app && app.globalData ? app.globalData.startupRedirectModule : ''
 			return {
-				accessState: 'loading', accessBusy: false, accessError: '', secretInput: '', secretConfirm: '', secret: '', secretGateEnabled: true, taskService: null,
+				startupRedirecting: Boolean(startupModule && startupModule !== 'schedule'), accessState: 'loading', accessBusy: false, accessError: '', secretInput: '', secretConfirm: '', secret: '', secretGateEnabled: true, taskService: null,
 				tasks: [], loadingTasks: false, mutationBusy: false, syncError: '', viewMode: 'list', searchQuery: '', newTaskTitle: '', selectedDate: '', selectedPriority: 'medium',
 				currentDate: localDateString(), calendarOpen: false, calendarCursor: localDateString(), calendarPriorityDraft: 'medium', calendarWeekdays: ['一', '二', '三', '四', '五', '六', '日'],
 				priorityOptions: [{ value: 'low', label: '低' }, { value: 'high', label: '高' }],
@@ -381,15 +384,36 @@
 			displayCompletedTasks() { return this.filteredActiveTasks.filter((task) => task.completed).sort(this.sortCompletedTasks) },
 			displayFutureTasks() { return this.filteredActiveTasks.filter((task) => !task.completed && task.task_date > this.currentDate).sort(this.sortByDateThenPriorityThenCreated) }
 		},
-		onLoad() { this.restoreCardRowHeights(); this.restoreWeeklyMetricHistory(); this.startMetricClock(); this.bootstrap() },
+		onLoad() {
+			const app = typeof getApp === 'function' ? getApp() : null
+			const startupModule = app && app.globalData ? app.globalData.startupRedirectModule : ''
+			if (startupModule && startupModule !== 'schedule') {
+				app.globalData.startupRedirectModule = ''
+				uni.reLaunch({
+					url: startupModuleUrl(startupModule),
+					fail: () => { this.startupRedirecting = false; this.initializeSchedulePage() }
+				})
+				return
+			}
+			this.startupRedirecting = false
+			this.initializeSchedulePage()
+		},
 		onShow() {
 			const today = localDateString()
 			if (today !== this.currentDate) this.currentDate = today
 			if (this.accessState === 'ready') this.loadTasks()
 		},
+		onBackPress() {
+			if (this.calendarOpen) { this.closeCalendar(); return true }
+			if (this.weeklyHistoryOpen) { this.closeWeeklyHistory(); return true }
+			if (this.viewMode !== 'list') { this.closeSubView(); return true }
+			if (this.layoutEditing) { this.endRowResize(); this.layoutEditing = false; return true }
+			return false
+		},
 		onUnload() { this.endRowResize(); this.stopMetricClock() },
 		beforeUnmount() { this.endRowResize(); this.stopMetricClock() },
 		methods: {
+			initializeSchedulePage() { this.restoreCardRowHeights(); this.restoreWeeklyMetricHistory(); this.startMetricClock(); this.bootstrap() },
 			formatMetricNumber(value) {
 				const number = Number(value) || 0
 				return Number.isInteger(number) ? String(number) : number.toFixed(1).replace(/\.0$/, '')
@@ -704,6 +728,7 @@
 
 <style>
 	.page-shell { min-height: 100vh; background: radial-gradient(circle at 92% 3%, rgba(115,72,232,.13), transparent 21%), radial-gradient(circle at 8% 34%, rgba(95,124,248,.08), transparent 18%), linear-gradient(180deg,#fbfaff 0%,#f7f8fc 100%); }
+	.page-shell.startup-redirecting { background:radial-gradient(circle at 92% 3%,rgba(115,72,232,.13),transparent 21%),radial-gradient(circle at 5% 38%,rgba(242,151,73,.08),transparent 20%),linear-gradient(180deg,#fbfaff 0%,#f7f8fc 100%); }
 	.page-content,.access-page { width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto; padding: calc(var(--status-bar-height, 0px) + 30rpx) 24rpx calc(176rpx + env(safe-area-inset-bottom)); }
 	.topbar,.subbar { display:flex; align-items:center; justify-content:space-between; min-height:90rpx; margin-bottom:20rpx; }
 	.date-heading { display:flex; align-items:center; gap:11rpx; font-size:31rpx; font-weight:650; letter-spacing:.5rpx; }

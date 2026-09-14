@@ -43,6 +43,27 @@ function normalizeCompletions(input) {
 		: []
 }
 
+function requireDate(input) {
+	if (typeof input !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input)) throw cycleError('INVALID_DATE', '打卡日期无效')
+	return input
+}
+
+function normalizeNote(input) {
+	const note = typeof input === 'string' ? input.trim() : ''
+	if (note.length > 200) throw cycleError('INVALID_NOTE', '备注不能超过 200 个字符')
+	return note
+}
+
+function normalizeCompletionNotes(input, completions) {
+	if (!input || typeof input !== 'object' || Array.isArray(input)) return {}
+	return Object.keys(input).reduce((result, date) => {
+		if (!completions.includes(date)) return result
+		const note = typeof input[date] === 'string' ? input[date].trim().slice(0, 200) : ''
+		if (note) result[date] = note
+		return result
+	}, {})
+}
+
 function normalizeCycle(input) {
 	if (!input || typeof input !== 'object' || typeof input._id !== 'string') return null
 	const legacyFrequency = ['daily', 'weekly', 'monthly'].includes(input.frequency) ? input.frequency : ''
@@ -53,6 +74,7 @@ function normalizeCycle(input) {
 	else if (legacyFrequency === 'daily') intervalValue = 1
 	else if (legacyFrequency === 'weekly') intervalValue = 7
 	else if (legacyFrequency === 'monthly') intervalValue = 1
+	const completions = normalizeCompletions(input.completions)
 	return {
 		_id: input._id,
 		title: typeof input.title === 'string' ? input.title : '',
@@ -60,7 +82,8 @@ function normalizeCycle(input) {
 		view_mode: viewMode,
 		interval_value: intervalValue,
 		interval_unit: intervalUnit,
-		completions: normalizeCompletions(input.completions),
+		completions,
+		completion_notes: normalizeCompletionNotes(input.completion_notes, completions),
 		archived: input.archived === true,
 		archived_at: Number(input.archived_at) || 0,
 		created_at: Number(input.created_at) || Date.now(),
@@ -68,7 +91,7 @@ function normalizeCycle(input) {
 	}
 }
 
-function cloneCycle(cycle) { return { ...cycle, completions: [...cycle.completions] } }
+function cloneCycle(cycle) { return { ...cycle, completions: [...cycle.completions], completion_notes: { ...cycle.completion_notes } } }
 function cloneCycles(cycles) { return cycles.map(cloneCycle) }
 
 function readCycles() {
@@ -116,7 +139,7 @@ export const cycleDataService = {
 		cycles.push({
 			_id: `cycle_${now.toString(36)}_${Math.random().toString(36).slice(2, 10)}`,
 			...settings,
-			completions: [], archived: false, archived_at: 0, created_at: now, updated_at: now
+			completions: [], completion_notes: {}, archived: false, archived_at: 0, created_at: now, updated_at: now
 		})
 		writeCycles(cycles)
 		return { created: true }
@@ -129,12 +152,37 @@ export const cycleDataService = {
 	},
 
 	async toggleCompletion(payload = {}) {
-		const date = typeof payload.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payload.date) ? payload.date : ''
-		if (!date) throw cycleError('INVALID_DATE', '打卡日期无效')
+		const date = requireDate(payload.date)
 		updateCycle(payload.id, (cycle) => {
 			if (cycle.archived) throw cycleError('CYCLE_ARCHIVED', '已停用的周期项目不能打卡')
 			const completed = cycle.completions.includes(date)
-			return { ...cycle, completions: completed ? cycle.completions.filter((value) => value !== date) : [...cycle.completions, date].sort(), updated_at: Date.now() }
+			const completionNotes = { ...cycle.completion_notes }
+			if (completed) delete completionNotes[date]
+			return { ...cycle, completions: completed ? cycle.completions.filter((value) => value !== date) : [...cycle.completions, date].sort(), completion_notes: completionNotes, updated_at: Date.now() }
+		})
+		return { updated: true }
+	},
+
+	async saveCompletion(payload = {}) {
+		const date = requireDate(payload.date)
+		const note = normalizeNote(payload.note)
+		updateCycle(payload.id, (cycle) => {
+			if (cycle.archived) throw cycleError('CYCLE_ARCHIVED', '已停用的周期项目不能打卡')
+			const completionNotes = { ...cycle.completion_notes }
+			if (note) completionNotes[date] = note
+			else delete completionNotes[date]
+			return { ...cycle, completions: cycle.completions.includes(date) ? cycle.completions : [...cycle.completions, date].sort(), completion_notes: completionNotes, updated_at: Date.now() }
+		})
+		return { updated: true }
+	},
+
+	async removeCompletion(payload = {}) {
+		const date = requireDate(payload.date)
+		updateCycle(payload.id, (cycle) => {
+			if (cycle.archived) throw cycleError('CYCLE_ARCHIVED', '已停用的周期项目不能修改打卡记录')
+			const completionNotes = { ...cycle.completion_notes }
+			delete completionNotes[date]
+			return { ...cycle, completions: cycle.completions.filter((value) => value !== date), completion_notes: completionNotes, updated_at: Date.now() }
 		})
 		return { updated: true }
 	},

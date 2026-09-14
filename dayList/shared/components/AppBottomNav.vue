@@ -1,14 +1,14 @@
 <template>
 	<view class="bottom-nav-wrap">
 		<view class="bottom-nav">
-			<button class="nav-item" :class="{ active: active === 'schedule' }" aria-label="切换到日程" @tap="switchModule('schedule')">
+			<button class="nav-item" :class="{ active: active === 'schedule' }" aria-label="切换到日程，长按可设置启动页" @tap="switchModule('schedule')" @longpress.stop="showStartupMenu('schedule')">
 				<view class="nav-icon schedule-icon">
 					<view class="schedule-line schedule-line-one"></view>
 					<view class="schedule-line schedule-line-two"></view>
 				</view>
 				<text>日程</text>
 			</button>
-			<button class="nav-item" :class="{ active: active === 'cycle' }" aria-label="切换到周期" @tap="switchModule('cycle')">
+			<button class="nav-item" :class="{ active: active === 'cycle' }" aria-label="切换到周期，长按可设置启动页" @tap="switchModule('cycle')" @longpress.stop="showStartupMenu('cycle')">
 				<view class="nav-icon cycle-icon">
 					<view class="mobius-loop mobius-loop-left"></view>
 					<view class="mobius-loop mobius-loop-right"></view>
@@ -21,14 +21,34 @@
 </template>
 
 <script>
+	import { saveStartupModule } from '../startup-module.js'
+	import { showFeedback } from '../feedback.js'
+
 	export default {
 		name: 'AppBottomNav',
 		props: { active: { type: String, required: true } },
+		data() { return { lastLongPressAt: 0 } },
 		methods: {
 			switchModule(moduleName) {
+				if (Date.now() - this.lastLongPressAt < 800) return
 				if (moduleName === this.active) return
 				const url = moduleName === 'cycle' ? '/pages/cycle/index' : '/pages/schedule/index'
 				uni.redirectTo({ url })
+			},
+			showStartupMenu(moduleName) {
+				this.lastLongPressAt = Date.now()
+				uni.showActionSheet({
+					itemList: ['设置为启动页'],
+					success: ({ tapIndex }) => {
+						if (tapIndex !== 0) return
+						try {
+							saveStartupModule(moduleName)
+							showFeedback(`启动页设置成功！下次打开APP会优先显示 [${moduleName === 'cycle' ? '周期' : '日程'}]`)
+						} catch (error) {
+							showFeedback('设置失败，请重试')
+						}
+					}
+				})
 			}
 		}
 	}
