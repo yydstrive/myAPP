@@ -4,7 +4,7 @@
 
 ```text
 myAPP/
-├── dayList/       # 日程清单
+├── dayList/       # 日程与周期管理
 ├── future-app/    # 后续应用示例
 └── README.md
 ```
@@ -17,4 +17,4 @@ myAPP/
 
 ## 应用
 
-- [`dayList`](./dayList/)：按日期管理任务的个人日程清单，支持 Web 与 Android App。
+- [`dayList`](./dayList/)：包含“日程”和“周期”两个独立功能模块的个人日程与周期管理应用，支持 Web 与 Android App。

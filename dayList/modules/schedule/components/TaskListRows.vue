@@ -36,6 +36,7 @@
 
 <script>
 	import { formatCompletedDate, formatTaskDate } from '../utils/task-date.js'
+	import { showFeedback } from '../../../shared/feedback.js'
 
 	export default {
 		name: 'TaskListRows',
@@ -101,7 +102,7 @@
 			saveEdit() {
 				if (!this.editingTask) return
 				const title = this.editTitle.trim()
-				if (!title) return uni.showToast({ title: '请输入任务内容', icon: 'none' })
+				if (!title) return showFeedback('请输入任务内容')
 				if (title !== this.editingTask.title) this.$emit('rename', { task: this.editingTask, title })
 				this.cancelEdit()
 			},

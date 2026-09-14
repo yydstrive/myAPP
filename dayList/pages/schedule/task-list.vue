@@ -15,7 +15,7 @@
 			<view v-else-if="displayTasks.length === 0" class="detail-empty">
 				<view class="empty-mark"><view class="empty-check-glyph"></view></view>
 				<text class="empty-title">{{ emptyTitle }}</text>
-				<text class="empty-copy">返回首页可继续添加或调整任务</text>
+				<text class="empty-copy">返回日程可继续添加或调整任务</text>
 			</view>
 			<task-list-rows v-else :tasks="displayTasks" :today="currentDate" @toggle="toggleTask" @remove="moveToTrash" @rename="renameTask" />
 		</view>
@@ -23,8 +23,9 @@
 </template>
 
 <script>
-	import TaskListRows from '../../components/TaskListRows.vue'
-	import { createTaskService } from '../../services/task-data-service.js'
+	import TaskListRows from '../../modules/schedule/components/TaskListRows.vue'
+	import { createTaskService } from '../../modules/schedule/services/task-data-service.js'
+	import { showFeedback } from '../../shared/feedback.js'
 
 	const SECRET_STORAGE_KEY = 'daylist-sync-secret-v1'
 	const pad = (value) => String(value).padStart(2, '0')
@@ -125,7 +126,7 @@
 			async renameTask({ task, title }) { await this.mutate('renameTask', { id: task._id, title }, '修改失败') },
 			async moveToTrash(task) {
 				const ok = await this.mutate('moveToTrash', { id: task._id }, '删除失败')
-				if (ok) uni.showToast({ title: '已移入回收站', icon: 'none' })
+				if (ok) showFeedback('已移入回收站')
 			},
 			async mutate(method, payload, fallback) {
 				if (this.mutationBusy || this.loading) return false
@@ -135,7 +136,7 @@
 					await this.loadTasks()
 					return true
 				} catch (error) {
-					uni.showToast({ title: this.friendlyError(error, fallback), icon: 'none' })
+					showFeedback(this.friendlyError(error, fallback))
 					return false
 				} finally { this.mutationBusy = false }
 			},

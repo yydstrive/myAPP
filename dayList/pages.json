@@ -1,7 +1,7 @@
 {
 	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
 		{
-			"path": "pages/index/index",
+			"path": "pages/schedule/index",
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "日程清单",
@@ -13,10 +13,34 @@
 			}
 		},
 		{
-			"path": "pages/task-list/task-list",
+			"path": "pages/schedule/task-list",
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "任务列表",
+				"backgroundColor": "#f8f7fc",
+				"enablePullDownRefresh": false,
+				"app-plus": {
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/cycle/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "周期",
+				"backgroundColor": "#f8f7fc",
+				"enablePullDownRefresh": false,
+				"app-plus": {
+					"bounce": "none"
+				}
+			}
+		},
+		{
+			"path": "pages/cycle/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "周期详情",
 				"backgroundColor": "#f8f7fc",
 				"enablePullDownRefresh": false,
 				"app-plus": {

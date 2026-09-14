@@ -215,13 +215,16 @@
 				</view>
 			</view>
 		</template>
+		<app-bottom-nav active="schedule" />
 	</view>
 </template>
 
 <script>
-	import TaskCard from '../../components/TaskCard.vue'
-	import TaskListRows from '../../components/TaskListRows.vue'
-	import { createTaskService } from '../../services/task-data-service.js'
+	import TaskCard from '../../modules/schedule/components/TaskCard.vue'
+	import TaskListRows from '../../modules/schedule/components/TaskListRows.vue'
+	import AppBottomNav from '../../shared/components/AppBottomNav.vue'
+	import { createTaskService } from '../../modules/schedule/services/task-data-service.js'
+	import { showFeedback } from '../../shared/feedback.js'
 
 	const SECRET_STORAGE_KEY = 'daylist-sync-secret-v1'
 	const CARD_ROW_HEIGHTS_STORAGE_KEY = 'daylist-card-row-heights-v1'
@@ -249,7 +252,7 @@
 	}
 
 	export default {
-		components: { TaskCard, TaskListRows },
+		components: { TaskCard, TaskListRows, AppBottomNav },
 		data() {
 			return {
 				accessState: 'loading', accessBusy: false, accessError: '', secretInput: '', secretConfirm: '', secret: '', secretGateEnabled: true, taskService: null,
@@ -485,7 +488,7 @@
 				this.endRowResize()
 				uni.setStorageSync(CARD_ROW_HEIGHTS_STORAGE_KEY, { ...this.cardRowHeights })
 				this.layoutEditing = false
-				uni.showToast({ title: '卡片高度已保存', icon: 'none' })
+				showFeedback('卡片高度已保存')
 			},
 			resizeEventPoint(event) {
 				if (event.touches && event.touches[0]) return event.touches[0]
@@ -663,26 +666,26 @@
 				try {
 					await this.getService().createTask({ secret: this.secret, title, taskDate: this.selectedDate || this.currentDate, priority: this.selectedPriority })
 					this.newTaskTitle = ''; this.selectedDate = ''; this.selectedPriority = 'medium'; await this.loadTasks()
-				} catch (error) { uni.showToast({ title: this.friendlyError(error, '添加失败'), icon: 'none' }) }
+				} catch (error) { showFeedback(this.friendlyError(error, '添加失败')) }
 				finally { this.mutationBusy = false }
 			},
 			async toggleTask(task) { await this.mutate('setCompleted', { id: task._id, completed: !task.completed }, '更新失败') },
 			async renameTask({ task, title }) { await this.mutate('renameTask', { id: task._id, title }, '修改失败') },
-			async moveToTrash(task) { const ok = await this.mutate('moveToTrash', { id: task._id }, '删除失败'); if (ok) uni.showToast({ title: '已移入回收站', icon: 'none' }) },
-			async restoreTask(task) { const ok = await this.mutate('restoreTask', { id: task._id }, '恢复失败'); if (ok) uni.showToast({ title: '已恢复', icon: 'none' }) },
+			async moveToTrash(task) { const ok = await this.mutate('moveToTrash', { id: task._id }, '删除失败'); if (ok) showFeedback('已移入回收站') },
+			async restoreTask(task) { const ok = await this.mutate('restoreTask', { id: task._id }, '恢复失败'); if (ok) showFeedback('恢复成功') },
 			confirmPermanentDelete(task) {
 				uni.showModal({ title: '永久删除任务？', content: `“${task.title}”删除后无法恢复。`, confirmText: '永久删除', confirmColor: '#e94b55', success: ({ confirm }) => { if (confirm) this.permanentDelete(task) } })
 			},
-			async permanentDelete(task) { const ok = await this.mutate('deleteForever', { id: task._id }, '永久删除失败'); if (ok) uni.showToast({ title: '已永久删除', icon: 'none' }) },
+			async permanentDelete(task) { const ok = await this.mutate('deleteForever', { id: task._id }, '永久删除失败'); if (ok) showFeedback('已永久删除') },
 			async mutate(method, payload, fallback) {
 				if (this.mutationBusy || this.loadingTasks) return false
 				this.mutationBusy = true
 				try { await this.getService()[method]({ secret: this.secret, ...payload }); await this.loadTasks(); return true }
-				catch (error) { uni.showToast({ title: this.friendlyError(error, fallback), icon: 'none' }); return false }
+				catch (error) { showFeedback(this.friendlyError(error, fallback)); return false }
 				finally { this.mutationBusy = false }
 			},
 			openSearch() { this.searchQuery = ''; this.viewMode = 'search' },
-			openCategory(category) { uni.navigateTo({ url: `/pages/task-list/task-list?category=${category}` }) },
+			openCategory(category) { uni.navigateTo({ url: `/pages/schedule/task-list?category=${category}` }) },
 			openTrash() { this.viewMode = 'trash' },
 			closeSubView() { this.viewMode = 'list'; this.searchQuery = '' },
 			formatFullDate(value) { const date = parseDate(value); return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日` },
@@ -701,7 +704,7 @@
 
 <style>
 	.page-shell { min-height: 100vh; background: radial-gradient(circle at 92% 3%, rgba(115,72,232,.13), transparent 21%), radial-gradient(circle at 8% 34%, rgba(95,124,248,.08), transparent 18%), linear-gradient(180deg,#fbfaff 0%,#f7f8fc 100%); }
-	.page-content,.access-page { width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto; padding: calc(var(--status-bar-height, 0px) + 30rpx) 24rpx 54rpx; }
+	.page-content,.access-page { width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto; padding: calc(var(--status-bar-height, 0px) + 30rpx) 24rpx calc(176rpx + env(safe-area-inset-bottom)); }
 	.topbar,.subbar { display:flex; align-items:center; justify-content:space-between; min-height:90rpx; margin-bottom:20rpx; }
 	.date-heading { display:flex; align-items:center; gap:11rpx; font-size:31rpx; font-weight:650; letter-spacing:.5rpx; }
 	.date-dot { color:#77798b; } .weekday { color:#45465a; } .top-actions { display:flex; gap:12rpx; }

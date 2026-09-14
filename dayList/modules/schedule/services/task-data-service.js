@@ -1,4 +1,4 @@
-import { REMOTE_SYNC_ENABLED } from '../config/data-source.js'
+import { REMOTE_SYNC_ENABLED } from '../../../config/data-source.js'
 
 const LOCAL_TASKS_STORAGE_KEY = 'daylist-local-tasks-v1'
 const LEGACY_TASK_CACHE_KEY = 'daylist-task-cache-v1'
