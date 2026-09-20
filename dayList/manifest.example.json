@@ -2,8 +2,8 @@
     "name" : "日程清单",
     "appid" : "__DCLOUD_APP_ID_FROM_ENV__",
     "description" : "仅记录到日期的个人日程清单",
-    "versionName" : "1.0.2",
-    "versionCode" : "102",
+    "versionName" : "1.1.1",
+    "versionCode" : "111",
     "transformPx" : false,
     "uniStatistics" : {
         "enable" : false
@@ -55,6 +55,17 @@
             },
             /* ios打包配置 */
             "ios" : {},
+            "icons" : {
+                "android" : {
+                    "hdpi" : "static/icons/app-icon-72.png",
+                    "xhdpi" : "static/icons/app-icon-96.png",
+                    "xxhdpi" : "static/icons/app-icon-144.png",
+                    "xxxhdpi" : "static/icons/app-icon-192.png"
+                },
+                "ios" : {
+                    "appstore" : "static/icons/app-icon-1024.png"
+                }
+            },
             /* SDK配置 */
             "sdkConfigs" : {}
         }

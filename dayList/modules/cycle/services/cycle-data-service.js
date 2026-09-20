@@ -25,6 +25,12 @@ function normalizeIcon(input) {
 	return icon ? Array.from(icon).slice(0, 2).join('') : '↻'
 }
 
+function normalizeDescription(input) {
+	const description = typeof input === 'string' ? input.trim() : ''
+	if (description.length > 120) throw cycleError('INVALID_DESCRIPTION', '打卡说明不能超过 120 个字符')
+	return description
+}
+
 function requireViewMode(input) {
 	if (!VIEW_MODES.includes(input)) throw cycleError('INVALID_VIEW_MODE', '请选择周视图或月视图')
 	return input
@@ -78,6 +84,7 @@ function normalizeCycle(input) {
 	return {
 		_id: input._id,
 		title: typeof input.title === 'string' ? input.title : '',
+		checkin_description: typeof input.checkin_description === 'string' ? input.checkin_description.trim().slice(0, 120) : '',
 		icon: normalizeIcon(input.icon),
 		view_mode: viewMode,
 		interval_value: intervalValue,
@@ -115,6 +122,7 @@ function normalizedSettings(payload) {
 	const intervalUnit = INTERVAL_UNITS.includes(payload.intervalUnit) ? payload.intervalUnit : 'day'
 	return {
 		title: requireTitle(payload.title),
+		checkin_description: normalizeDescription(payload.description),
 		icon: normalizeIcon(payload.icon),
 		view_mode: requireViewMode(payload.viewMode),
 		interval_value: normalizeIntervalValue(payload.intervalValue),
@@ -184,6 +192,19 @@ export const cycleDataService = {
 			delete completionNotes[date]
 			return { ...cycle, completions: cycle.completions.filter((value) => value !== date), completion_notes: completionNotes, updated_at: Date.now() }
 		})
+		return { updated: true }
+	},
+
+	async reorderActiveCycles(payload = {}) {
+		const ids = Array.isArray(payload.ids) ? payload.ids.map(requireId) : []
+		const cycles = readCycles()
+		const activeCycles = cycles.filter((cycle) => !cycle.archived)
+		const activeIds = new Set(activeCycles.map((cycle) => cycle._id))
+		if (ids.length !== activeCycles.length || new Set(ids).size !== ids.length || ids.some((id) => !activeIds.has(id))) {
+			throw cycleError('INVALID_CYCLE_ORDER', '周期项目排序数据无效，请刷新后重试')
+		}
+		const activeMap = new Map(activeCycles.map((cycle) => [cycle._id, cycle]))
+		writeCycles([...ids.map((id) => activeMap.get(id)), ...cycles.filter((cycle) => cycle.archived)])
 		return { updated: true }
 	},
 

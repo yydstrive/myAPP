@@ -8,7 +8,7 @@
 
 ## Android 正式包
 
-1. 在 HBuilderX 打开本 `dayList` 目录，确认 `manifest.json` 中应用名称为“日程清单”、包名为 `com.personal.daylist`，版本为 `1.0.2`（版本号 `102`）。
+1. 在 HBuilderX 打开本 `dayList` 目录，确认 `manifest.json` 中应用名称为“日程清单”、包名为 `com.personal.daylist`，版本为 `1.1.1`（版本号 `111`）。
 2. 选择“发行 → 原生 App-云打包”，只勾选 Android，启用“安心打包”，证书选择 DCloud 云端证书。
 3. 后续升级继续使用同一 DCloud AppID、包名和云端证书；否则 Android 会将其视为不同签名，无法覆盖安装并保留本地数据。
 4. 使用正式版打包；下载 APK 后先核验版本、签名和权限清单，再传到小米 14 安装。

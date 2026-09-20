@@ -42,6 +42,11 @@ export const expectedNextDate = (cycle) => {
 	return cycle.interval_unit === 'month' ? addMonths(last, cycle.interval_value) : addDays(last, cycle.interval_value)
 }
 
+export const isExpectedDateDue = (cycle, currentDate = localDateString()) => {
+	const next = expectedNextDate(cycle)
+	return Boolean(next && currentDate && next <= currentDate)
+}
+
 export const weekDaysFor = (value) => {
 	const date = parseLocalDate(value)
 	const mondayOffset = (date.getDay() + 6) % 7
