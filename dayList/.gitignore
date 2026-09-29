@@ -1,4 +1,13 @@
 unpackage/
+
+# 保留 Android 打包流程说明，其他 unpackage 构建产物仍忽略
+!unpackage/
+unpackage/*
+!unpackage/release/
+unpackage/release/*
+!unpackage/release/apk/
+unpackage/release/apk/*
+!unpackage/release/apk/README.md
 .DS_Store
 .hbuilderx/
 .env

@@ -13,7 +13,7 @@
 			</view>
 
 			<view v-else class="cycle-subbar">
-				<button class="cycle-back-button" aria-label="返回进行中" @tap="toggleViewMode">‹</button>
+				<button class="cycle-back-button css-back-button" aria-label="返回进行中" @tap="toggleViewMode"><view class="css-back-arrow"></view></button>
 				<view><text class="cycle-subbar-title">已停用</text><text class="cycle-subbar-copy">可恢复或永久删除</text></view>
 			</view>
 

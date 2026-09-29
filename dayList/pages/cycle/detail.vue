@@ -2,7 +2,7 @@
 	<view class="detail-shell">
 		<view class="detail-content">
 			<view class="detail-header">
-				<button class="detail-back" aria-label="返回" @tap="goBack">‹</button>
+				<button class="detail-back css-back-button" aria-label="返回" @tap="goBack"><view class="css-back-arrow"></view></button>
 				<view v-if="cycle" class="detail-heading"><view class="detail-icon">{{ cycle.icon }}</view><text class="detail-title">{{ cycle.title }}</text></view>
 				<view v-else class="detail-heading"><text class="detail-title">周期详情</text></view>
 				<view v-if="cycle && !cycle.archived" class="detail-actions">

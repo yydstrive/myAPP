@@ -43,7 +43,9 @@
 						<text>{{ headerDate }}</text><text class="date-dot">·</text><text class="weekday">{{ headerWeekday }}</text>
 					</view>
 					<view class="top-actions">
-						<button class="icon-button" aria-label="搜索" @tap="openSearch"><view class="search-glyph"></view></button>
+						<button class="icon-button" aria-label="云端快照" @tap="openCloudBackup">
+							<image class="cloud-sync-image" src="/static/icons/cloud-sync.png" mode="aspectFit"></image>
+						</button>
 						<button class="icon-button" aria-label="回收站" @tap="openTrash">
 							<view class="trash-glyph"><view></view></view>
 						</button>
@@ -51,11 +53,12 @@
 							<view v-if="layoutEditing" class="layout-save-glyph"></view>
 							<view v-else class="layout-edit-glyph"><view></view></view>
 						</button>
+						<button class="icon-button" aria-label="搜索" @tap="openSearch"><view class="search-glyph"></view></button>
 					</view>
 				</view>
 
 				<view v-else-if="viewMode === 'search'" class="subbar searchbar">
-					<button class="back-button" @tap="closeSubView">‹</button>
+					<button class="back-button css-back-button" aria-label="返回" @tap="closeSubView"><view class="css-back-arrow"></view></button>
 					<view class="search-box">
 						<view class="search-glyph small"></view>
 						<input v-model="searchQuery" class="search-input" focus maxlength="80" placeholder="搜索任务" />
@@ -64,7 +67,7 @@
 				</view>
 
 				<view v-else class="subbar">
-					<button class="back-button" @tap="closeSubView">‹</button>
+					<button class="back-button css-back-button" aria-label="返回" @tap="closeSubView"><view class="css-back-arrow"></view></button>
 					<text class="subbar-title">回收站</text><view class="subbar-spacer"></view>
 				</view>
 
@@ -709,6 +712,7 @@
 				finally { this.mutationBusy = false }
 			},
 			openSearch() { this.searchQuery = ''; this.viewMode = 'search' },
+			openCloudBackup() { uni.navigateTo({ url: '/pages/schedule/cloud-backup' }) },
 			openCategory(category) { uni.navigateTo({ url: `/pages/schedule/task-list?category=${category}` }) },
 			openTrash() { this.viewMode = 'trash' },
 			closeSubView() { this.viewMode = 'list'; this.searchQuery = '' },
@@ -732,9 +736,10 @@
 	.page-content,.access-page { width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto; padding: calc(var(--status-bar-height, 0px) + 30rpx) 24rpx calc(176rpx + env(safe-area-inset-bottom)); }
 	.topbar,.subbar { display:flex; align-items:center; justify-content:space-between; min-height:90rpx; margin-bottom:20rpx; }
 	.date-heading { display:flex; align-items:center; gap:11rpx; font-size:31rpx; font-weight:650; letter-spacing:.5rpx; }
-	.date-dot { color:#77798b; } .weekday { color:#45465a; } .top-actions { display:flex; gap:12rpx; }
+	.date-dot { color:#77798b; } .weekday { color:#45465a; } .top-actions { display:flex; gap:8rpx; }
 	.icon-button { position:relative; display:flex; align-items:center; justify-content:center; width:76rpx; height:76rpx; margin:0; padding:0; border:1rpx solid rgba(85,73,130,.12); border-radius:50%; background:rgba(255,255,255,.7); box-shadow:0 8rpx 22rpx rgba(77,65,120,.05); }
 	.icon-button::after { border:0 !important; }
+	.cloud-sync-image { display:block; width:60rpx; height:60rpx; }
 	.search-glyph { position:relative; width:27rpx; height:27rpx; border:5rpx solid #171824; border-radius:50%; }
 	.search-glyph::after { content:''; position:absolute; width:18rpx; height:5rpx; right:-15rpx; bottom:-8rpx; border-radius:4rpx; background:#171824; transform:rotate(46deg); }
 	.icon-button>.search-glyph { transform:translate(-5rpx,-5rpx); }

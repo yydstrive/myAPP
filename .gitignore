@@ -12,6 +12,15 @@ work/
 **/unpackage/
 **/dist/
 
+# 保留 Android 打包流程说明，其他 unpackage 构建产物仍忽略
+!dayList/unpackage/
+dayList/unpackage/*
+!dayList/unpackage/release/
+dayList/unpackage/release/*
+!dayList/unpackage/release/apk/
+dayList/unpackage/release/apk/*
+!dayList/unpackage/release/apk/README.md
+
 # Android / iOS 签名材料
 **/*.keystore
 **/*.jks

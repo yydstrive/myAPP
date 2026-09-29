@@ -25,6 +25,18 @@
 			}
 		},
 		{
+			"path": "pages/schedule/cloud-backup",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "云端快照",
+				"backgroundColor": "#f8f7fc",
+				"enablePullDownRefresh": false,
+				"app-plus": {
+					"bounce": "none"
+				}
+			}
+		},
+		{
 			"path": "pages/cycle/index",
 			"style": {
 				"navigationStyle": "custom",

@@ -2,8 +2,8 @@
     "name" : "日程清单",
     "appid" : "__DCLOUD_APP_ID_FROM_ENV__",
     "description" : "仅记录到日期的个人日程清单",
-    "versionName" : "1.1.1",
-    "versionCode" : "111",
+    "versionName" : "1.1.2",
+    "versionCode" : "112",
     "transformPx" : false,
     "uniStatistics" : {
         "enable" : false

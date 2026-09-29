@@ -1,0 +1,25 @@
+{
+  "bsonType": "object",
+  "required": ["sync_code_hash", "snapshot_type", "schema_version", "captured_at", "created_at", "payload_hash", "payload_bytes", "payload_json", "task_count", "cycle_count", "weekly_history_count"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false,
+    "count": false
+  },
+  "properties": {
+    "_id": { "description": "不可变快照ID" },
+    "sync_code_hash": { "bsonType": "string", "description": "四位同步码的服务端摘要" },
+    "snapshot_type": { "bsonType": "string", "enum": ["monthly", "manual"] },
+    "schema_version": { "bsonType": "int", "minimum": 1 },
+    "captured_at": { "bsonType": "long" },
+    "created_at": { "bsonType": "long" },
+    "payload_hash": { "bsonType": "string" },
+    "payload_bytes": { "bsonType": "long" },
+    "payload_json": { "bsonType": "string" },
+    "task_count": { "bsonType": "int", "minimum": 0 },
+    "cycle_count": { "bsonType": "int", "minimum": 0 },
+    "weekly_history_count": { "bsonType": "int", "minimum": 0 }
+  }
+}

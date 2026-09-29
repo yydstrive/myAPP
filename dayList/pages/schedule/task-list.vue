@@ -2,7 +2,7 @@
 	<view class="detail-shell">
 		<view class="detail-content">
 			<view class="detail-header">
-				<button class="detail-back" aria-label="返回" @tap="goBack">‹</button>
+				<button class="detail-back css-back-button" aria-label="返回" @tap="goBack"><view class="css-back-arrow"></view></button>
 				<view class="detail-heading">
 					<text class="detail-title">{{ pageTitle }}</text>
 					<text class="detail-count">{{ displayTasks.length }} 项</text>

@@ -1,0 +1,11 @@
+{
+  "name": "backup-service",
+  "version": "1.0.0",
+  "description": "日程清单不可变云端快照云对象",
+  "main": "index.obj.js",
+  "cloudfunction-config": {
+    "memorySize": 256,
+    "timeout": 10,
+    "triggers": []
+  }
+}
